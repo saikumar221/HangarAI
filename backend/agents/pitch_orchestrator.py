@@ -124,19 +124,87 @@ _NEGATIVE_EMOTIONS = {
 }
 
 
+def _kalman_smooth_confidence(
+    timestamps: list[float], raw_scores: list[float]
+) -> list[dict]:
+    """1-D Kalman filter over the raw confidence timeline.
+
+    Hidden state: true presenter confidence (scalar).
+    Transition model: random walk — x_k = x_{k-1} + process_noise.
+    Observation model: z_k = x_k + measurement_noise.
+
+    Q = 0.005  process noise: true confidence changes slowly between ~5 s snapshots
+    R = 0.04   measurement noise: MediaPipe jitter from lighting / head turns /
+               emotion-classifier variance
+
+    Returns one dict per input point with:
+        filtered  – Kalman-smoothed estimate of true confidence (0–1)
+        velocity  – d(filtered)/dt in score/second (signed momentum signal)
+        gain      – Kalman gain K (0–1); near 1 = observation trusted, near 0 = prior trusted
+    """
+    Q = 0.005
+    R = 0.04
+
+    if not raw_scores:
+        return []
+
+    # Initialise: state = first observation, covariance = measurement noise
+    x = raw_scores[0]
+    P = R
+
+    results = []
+    prev_x = x
+    prev_ts = timestamps[0]
+
+    for i, (ts, z) in enumerate(zip(timestamps, raw_scores)):
+        # Predict
+        x_pred = x
+        P_pred = P + Q
+
+        # Update
+        K = P_pred / (P_pred + R)
+        x = x_pred + K * (z - x_pred)
+        P = (1.0 - K) * P_pred
+
+        # Velocity: rate of change of filtered state in score/second
+        if i == 0:
+            velocity = 0.0
+        else:
+            dt = ts - prev_ts
+            velocity = (x - prev_x) / dt if dt > 0.0 else 0.0
+
+        results.append({
+            "filtered": round(min(1.0, max(0.0, x)), 4),
+            "velocity": round(velocity, 5),
+            "gain": round(K, 4),
+        })
+
+        prev_x = x
+        prev_ts = ts
+
+    return results
+
+
 def _build_confidence_graph(
     audio_segments: list[dict], video_snapshots: list[dict]
 ) -> list[dict]:
     """Merge vocal emotion + visual presence signals into a unified confidence timeline.
 
-    Each data point corresponds to a video snapshot timestamp.  The nearest
-    audio segment is found and its dominant emotion modifies the raw visual
-    composite score by ±15 % depending on positive/negative valence.
+    Two-pass pipeline:
+      Pass 1 – timestamp matching, visual composite, valence modulation → raw scores
+      Pass 2 – Kalman filter sweeps over the full raw timeline in one pass
+
+    Each output point carries:
+        confidence_score      – Kalman-filtered (smooth, use for charting)
+        raw_confidence_score  – pre-filter composite (what the raw sensor saw)
+        confidence_velocity   – score/sec, signed (+0.02 = rising, −0.03 = declining)
+        kalman_gain           – 0–1, how much this observation was trusted vs. the prior
     """
     if not video_snapshots:
         return []
 
-    result = []
+    # ── Pass 1: raw scores ──────────────────────────────────────────────────
+    pass1 = []
     for snap in sorted(video_snapshots, key=lambda x: x["timestamp"]):
         ts = snap["timestamp"]
 
@@ -171,18 +239,37 @@ def _build_confidence_graph(
         else:
             modifier = 1.0
 
-        confidence = round(min(1.0, max(0.0, visual * modifier)), 3)
+        raw_confidence = round(min(1.0, max(0.0, visual * modifier)), 3)
 
-        result.append({
+        pass1.append({
             "timestamp": ts,
-            "confidence_score": confidence,
+            "raw_confidence": raw_confidence,
             "dominant_emotion": dominant_emotion,
             "eye_contact": snap["eye_contact_score"],
             "expression": snap["expression_score"],
             "posture": snap["posture_score"],
         })
 
-    return result
+    # ── Pass 2: Kalman filter ───────────────────────────────────────────────
+    kalman_out = _kalman_smooth_confidence(
+        [p["timestamp"] for p in pass1],
+        [p["raw_confidence"] for p in pass1],
+    )
+
+    return [
+        {
+            "timestamp": p["timestamp"],
+            "confidence_score": k["filtered"],
+            "raw_confidence_score": p["raw_confidence"],
+            "confidence_velocity": k["velocity"],
+            "kalman_gain": k["gain"],
+            "dominant_emotion": p["dominant_emotion"],
+            "eye_contact": p["eye_contact"],
+            "expression": p["expression"],
+            "posture": p["posture"],
+        }
+        for p, k in zip(pass1, kalman_out)
+    ]
 
 
 # ---------------------------------------------------------------------------

@@ -152,10 +152,14 @@ function ConfidenceGraph({ data }: { data: GraphPoint[] }) {
           whiteSpace: 'nowrap',
           zIndex: 10,
         }}>
-          <div style={{ fontWeight: 500 }}>{hovered.timestamp.toFixed(1)}s — {(hovered.confidence_score * 100).toFixed(0)}%</div>
-          {hovered.dominant_emotion && (
-            <div style={{ color: '#cbd5e1' }}>{hovered.dominant_emotion}</div>
-          )}
+          <div style={{ fontWeight: 500 }}>
+            {hovered.timestamp.toFixed(1)}s — {(hovered.confidence_score * 100).toFixed(0)}%
+            {' '}{hovered.confidence_velocity > 0.005 ? '↑' : hovered.confidence_velocity < -0.005 ? '↓' : '→'}
+          </div>
+          <div style={{ color: '#cbd5e1' }}>
+            raw: {(hovered.raw_confidence_score * 100).toFixed(0)}%
+            {hovered.dominant_emotion ? ` · ${hovered.dominant_emotion}` : ''}
+          </div>
         </div>
       )}
 

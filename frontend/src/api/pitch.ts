@@ -72,6 +72,9 @@ export interface AnalysisReport {
   confidence_graph: {
     timestamp: number
     confidence_score: number
+    raw_confidence_score: number
+    confidence_velocity: number
+    kalman_gain: number
     dominant_emotion: string | null
     eye_contact: number
     expression: number
