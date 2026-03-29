@@ -19,7 +19,7 @@ Hangar is not a slide tool, a transcription service, or a generic speaking coach
 
 1. **End-to-end pipeline** — the same platform takes you from a raw idea through structured ideation to a live pitch simulation and a scored debrief. The context from your brainstorm (your market, competitors, differentiators) feeds directly into your pitch analysis — Gemini knows what you *should* be saying before it judges how you said it.
 
-2. **Multimodal signal fusion** — most tools analyze one signal in isolation. Hangar captures vocal emotion (Hume AI prosody, every 1.5 s) and visual presence (MediaPipe face + pose landmarks, every 5 s) and fuses them into a single timestamped confidence score. A dip in confidence at second 47 means something specific — the audio and video data at that moment tell you *why*.
+2. **Multimodal signal fusion** — most tools analyze one signal in isolation. Hangar captures vocal emotion (Hume AI prosody, 2-second chunks) and visual presence (MediaPipe face + pose landmarks, averaged into 2-second snapshots) and fuses them into a single timestamped confidence score. A dip in confidence at second 47 means something specific — the audio and video data at that moment tell you *why*.
 
 3. **Investor-persona verdict** — feedback isn't generic. The final verdict is written in the voice of the specific investor you selected, based on their company, background, and any notes you provided. A YC partner reads your pitch differently than a deep-tech Series A fund. Hangar reflects that.
 
@@ -29,7 +29,7 @@ Hangar is not a slide tool, a transcription service, or a generic speaking coach
 A chat-based interface where founders brainstorm with an AI consultant. The agent progresses through three phases — **exploring**, **challenging**, and **finalizing** — pushing founders to clearly articulate their problem, solution, target customer, and market. The result is a structured **Startup Manifest** saved to the database and used as context for every subsequent step.
 
 ### Pitch Dojo
-A real-time pitch simulation where founders enter the target investor's details and deliver their pitch live. Audio is streamed via WebSocket to **Hume AI** for prosody/emotion analysis every 1.5 seconds. Video is analyzed frame-by-frame by **MediaPipe** for eye contact, facial expression, posture, and head stability — all timestamped and persisted to PostgreSQL.
+A real-time pitch simulation where founders enter the target investor's details and deliver their pitch live. Audio is streamed via WebSocket to **Hume AI** for prosody/emotion analysis in 2-second chunks. Video is analyzed client-side by **MediaPipe** (`FaceLandmarker` + `PoseLandmarker`) running in a requestAnimationFrame loop — eye contact, expression, posture, and head stability scores are averaged into 2-second snapshots and POSTed to the backend when the pitch ends.
 
 ### Post-Pitch Analysis (Multi-Agent Orchestrator)
 After a session, a **LangGraph** orchestrator fires two Gemini-powered agents in parallel:

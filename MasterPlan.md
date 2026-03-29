@@ -2,6 +2,8 @@
 
 ## Problem
 Every founder knows the drill. You spend weeks obsessing over your deck, you practice in the mirror, you do a couple of mock runs with friends who mostly nod along — and then you walk into a partner meeting at a16z or YC and Paul Graham asks you one question you weren't ready for, and the whole thing unravels. The feedback loop for pitch prep is completely broken. The only people who can give you real signal are the investors themselves, and by the time you're in front of them it's already the real thing.
+The structural moat against incumbents adding persona simulation: Yoodli or Poised could add an investor persona chatbot in a sprint. They cannot replicate the Manifest-grounded question generation without also building the idea validation layer — which is a fundamentally different product surface and would cannibalize their existing enterprise meeting coaching positioning.
+
 The deeper problem is that most founders don't even have a crisp idea before they start pitching. Early-stage founders operate in a 'Realism Gap.' 42% of startups fail due to a lack of market need. They know what they're building, but they can't articulate the problem clearly, they haven't mapped the competitive landscape honestly, and they haven't stress-tested the core assumption. They're pitching a half-formed thesis and hoping the investor fills in the gaps. 430,000+ new employer startups launch in the US every year (Census Bureau), but 75% of venture capital concentrates in just three states, leaving most founders without access to investor networks or advisors.
 
 ## Solution
@@ -9,6 +11,20 @@ Hangar is a modular 'AI Factory' that industrializes the transition from raw ide
 It uses a Stateful Multi-Agent Orchestrator to:
 Solidify messy brainstorms into structured 'Startup Manifests' via an Interactive Chain-of-Thought (iCoT) consultant.
 Provide a live multimodal pitch simulation where three specialized agents (Transcript/Persona, Vocal Health, and Visual Presence) analyze performance in parallel to generate an industrial-grade feedback report.
+
+## User Impact
+
+- Who: Pre-seed founders — solo or 2-person teams, pre-institutional pitch, typically outside SF/NYC with no warm investor intros and no one credible to practice with.
+
+- Scale: 430,000+ new employer startups launch in the US annually (Census Bureau), but 75% of venture capital concentrates in just three states (PitchBook-NVCA). Most founders have no access to the informal coaching networks that well-connected 
+founders take for granted.
+
+- Before: 2–4 weeks iterating a deck alone, 2–3 practice runs with friends who can't give real signal, one shot in the room with an investor, vague rejection, no diagnosis.
+
+- After: Thesis stress-tested before the deck exists. 3–5 Pitch Dojo sessions against the specific investor persona. Timestamped feedback on content, delivery, and presence. Walk in having already answered the hardest questions they ask.
+
+- Improvement basis: Structured deliberate practice with specific feedback reduces filler word frequency by 30–50% and improves narrative retention by 20–40% over unguided practice (public speaking research). Hangar applies this to the highest-stakes presentation most founders ever give.
+
 ## Architecture
 - Orchestration: LangGraph StateMachine on the backend to coordinate parallel agent execution and signal fusion.
 - Persistence: PostgreSQL for Startup Manifests (Problem/Solution/Market/Competitors), session logs, and per-timestamp signal data.
@@ -21,7 +37,7 @@ Provide a live multimodal pitch simulation where three specialized agents (Trans
 
 ## Features
 - Feature 1: Idea Finalization: A React chat interface where a Consultant Agent uses iCoT to challenge the founder, surface competitors, and extract a finalized manifest into the DB.
-- Feature 2: The Pitch Dojo: A live-streaming simulation. Users select an investor persona (e.g., Paul Graham) that interjects follow-up questions during natural pauses. Results are merged into a unified performance dashboard.
+- Feature 2: The Pitch Dojo: A live pitch simulation. Users enter an investor's details, deliver their pitch on camera, and get a full post-pitch report — improvement roadmap, confidence graph, and a verdict written in the investor's voice. (Live persona interjections during the pitch are on the roadmap, not yet implemented.)
 
 ## Differentiation Strategy
 | Competitor | What they do | Why Hangar wins |
@@ -32,12 +48,17 @@ Provide a live multimodal pitch simulation where three specialized agents (Trans
 
 Incumbents are optimized for recurring enterprise meeting coaching — not the single high-stakes pitch. Each Pitch Dojo session feeds back into the Startup Manifest, making persona questions sharper over time. That compounding feedback loop is what generic speech tools cannot replicate.
 
+The structural difference is that Hangar's feedback loop is grounded in a validated idea layer — the Startup Manifest — meaning persona questions aren't generic pitch coaching prompts but targeted challenges derived from the specific weaknesses identified in the founder's own thesis. No competitor can replicate this without also building the idea validation layer.
+
 Hangar's one-liner: The only tool that takes a founder from raw messy idea → structured manifest → live multimodal pitch simulation in a single stateful flow.
 
 ## Scalability Design
-- Backend vision processing: Moving from client-side MediaPipe to backend Gemini vision eliminates per-user WASM overhead entirely. Frame processing scales independently of the frontend.
-- Session-isolated state machines: Each Pitch Dojo session runs in its own LangGraph instance with no shared state. Concurrent users don't interfere with each other.
-- Decoupled agents: Transcript, Vocal Health, and Vision agents are independently deployable. Any layer can be scaled, swapped, or stubbed without affecting the others.
+- Client-side vision: MediaPipe runs entirely in the browser — zero per-user backend WASM overhead. The backend only receives lightweight JSON snapshots.
+- Session-isolated state machines: Each Pitch Dojo session runs in its own LangGraph invocation. Concurrent users don't interfere with each other.
+- Decoupled agents: Audio Agent (Hume) and Video Agent (Gemini/MediaPipe) are independently deployable. Either can be scaled, swapped, or stubbed without affecting the orchestration layer.
+- At 10x load (concurrent Dojo sessions): each session's LangGraph instance is stateless and independently deployable — horizontal scaling requires adding FastAPI workers behind a load balancer with sticky WebSocket routing. At 100x: the primary bottleneck is Hume AI and Gemini API rate limits, not infrastructure. The decoupled agent design means either can be swapped for self-hosted alternatives without touching the orchestration layer.
+
+**Manifest portability (roadmap):** A `GET /manifests/{id}` public endpoint could expose the manifest JSON for third-party deck tools or CRMs — not yet implemented.
 
 ## Risks & Contingencies
 
