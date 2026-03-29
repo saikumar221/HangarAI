@@ -1,3 +1,4 @@
+import { Link, useLocation } from 'react-router-dom'
 import type { SessionRecord } from '../types/brainstorm'
 
 interface Props {
@@ -8,6 +9,8 @@ interface Props {
 }
 
 export default function Sidebar({ sessions, activeSessionId, onNewSession, onSelectSession }: Props) {
+  const loc = useLocation()
+
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
@@ -15,6 +18,17 @@ export default function Sidebar({ sessions, activeSessionId, onNewSession, onSel
         <button className="new-btn" onClick={onNewSession}>
           <span className="plus">+</span> New session
         </button>
+      </div>
+
+      <div className="sidebar-nav">
+        <Link to="/" className={`snav-item${loc.pathname === '/' ? ' active' : ''}`}>
+          <div className="snav-dot" />
+          Brainstorm
+        </Link>
+        <Link to="/pitch-dojo" className={`snav-item${loc.pathname === '/pitch-dojo' ? ' active' : ''}`}>
+          <div className="snav-dot" />
+          Pitch Dojo
+        </Link>
       </div>
 
       <div className="sidebar-section">

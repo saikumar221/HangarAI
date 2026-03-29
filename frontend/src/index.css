@@ -923,6 +923,444 @@ body {
   white-space: nowrap;
 }
 
+/* ==================== SIDEBAR NAV ==================== */
+
+.sidebar-nav {
+  padding: 10px 20px;
+  border-bottom: 0.5px solid #1A1916;
+}
+
+.snav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 300;
+  color: #3A3830;
+  transition: color 0.15s, background 0.15s;
+  margin-bottom: 2px;
+}
+
+.snav-item:hover {
+  color: #5A5850;
+  background: #111008;
+}
+
+.snav-item.active {
+  color: #9A9280;
+  background: #161510;
+}
+
+.snav-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #2E2C28;
+  flex-shrink: 0;
+}
+
+.snav-item.active .snav-dot {
+  background: #C8924A;
+}
+
+/* ==================== PITCH DOJO (PRE-PITCH) ==================== */
+
+.pitch-main {
+  display: flex;
+  flex-direction: column;
+  background: #0C0B09;
+  overflow: hidden;
+  height: 100vh;
+}
+
+.pitch-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.pitch-content::-webkit-scrollbar {
+  width: 3px;
+}
+
+.pitch-content::-webkit-scrollbar-thumb {
+  background: #1A1916;
+  border-radius: 2px;
+}
+
+.pitch-manifest-card {
+  background: #0F0E0C;
+  border: 0.5px solid #1E1C18;
+  border-left: 1.5px solid rgba(200, 146, 74, 0.35);
+  border-radius: 0 10px 10px 0;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pmc-label {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #3A3830;
+}
+
+.pmc-oneliner {
+  font-size: 15px;
+  font-weight: 300;
+  color: #C8C0B0;
+  line-height: 1.5;
+}
+
+.pmc-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.pmc-field-label {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2E2C28;
+  margin-bottom: 5px;
+}
+
+.pmc-field-text {
+  font-size: 13px;
+  font-weight: 300;
+  color: #5A5850;
+  line-height: 1.55;
+}
+
+.pmc-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pitch-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pfs-label {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: #5A5850;
+}
+
+.pitch-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 520px;
+}
+
+.pf-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pf-label {
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: #3A3830;
+}
+
+.pf-req {
+  color: #8A6030;
+}
+
+.pf-input {
+  background: #0F0E0C;
+  border: 0.5px solid #1E1C18;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  color: #E8E4DC;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.pf-input:focus {
+  border-color: #2E2C28;
+}
+
+.pf-input::placeholder {
+  color: #2A2820;
+}
+
+.pf-textarea {
+  resize: none;
+  line-height: 1.55;
+}
+
+.pf-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+.pf-hint {
+  font-size: 11px;
+  font-weight: 300;
+  color: #252320;
+  letter-spacing: 0.04em;
+}
+
+.start-btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: #C8924A;
+  background: rgba(200, 146, 74, 0.08);
+  border: 0.5px solid rgba(200, 146, 74, 0.3);
+  border-radius: 6px;
+  padding: 9px 20px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.start-btn:hover:not(:disabled) {
+  background: rgba(200, 146, 74, 0.14);
+  border-color: rgba(200, 146, 74, 0.45);
+}
+
+.start-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ==================== PITCH CALL (ACTIVE) ==================== */
+
+.call-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #080706;
+  overflow: hidden;
+}
+
+.call-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 52px;
+  border-bottom: 0.5px solid #181714;
+  flex-shrink: 0;
+}
+
+.call-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.call-back-btn {
+  background: transparent;
+  border: 0.5px solid #1E1C18;
+  border-radius: 5px;
+  color: #4A4840;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.call-back-btn:hover {
+  color: #6A6560;
+  border-color: #2E2C28;
+}
+
+.call-manifest-title {
+  font-size: 13px;
+  font-weight: 300;
+  color: #4A4840;
+  letter-spacing: 0.01em;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.call-timer {
+  font-size: 13px;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  color: #3A3830;
+  font-variant-numeric: tabular-nums;
+}
+
+.call-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.call-video-area {
+  width: 100%;
+  height: 100%;
+  background: #0A0908;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.call-video-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.call-video-label {
+  font-size: 12px;
+  font-weight: 300;
+  color: #2A2820;
+  letter-spacing: 0.05em;
+}
+
+.call-investor-card {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: #0F0E0C;
+  border: 0.5px solid #1E1C18;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 130px;
+}
+
+.call-investor-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #1A1916;
+  border: 0.5px solid rgba(200, 146, 74, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 400;
+  color: #C8924A;
+}
+
+.call-investor-name {
+  font-size: 13px;
+  font-weight: 300;
+  color: #9A9280;
+  text-align: center;
+}
+
+.call-investor-company {
+  font-size: 11px;
+  font-weight: 300;
+  color: #4A4840;
+  text-align: center;
+}
+
+.call-transcript {
+  padding: 12px 28px;
+  border-top: 0.5px solid #141210;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-shrink: 0;
+  min-height: 48px;
+}
+
+.call-transcript-label {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #2E2C28;
+  flex-shrink: 0;
+}
+
+.call-transcript-text {
+  font-size: 13px;
+  font-weight: 300;
+  color: #4A4840;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.call-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 0.5px solid #141210;
+  flex-shrink: 0;
+}
+
+.ctrl-btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  color: #5A5850;
+  background: #0F0E0C;
+  border: 0.5px solid #1E1C18;
+  border-radius: 6px;
+  padding: 9px 20px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.ctrl-btn:hover {
+  border-color: #2E2C28;
+  color: #7A7870;
+}
+
+.ctrl-end {
+  color: #8A4040;
+  border-color: rgba(138, 64, 64, 0.35);
+  background: rgba(138, 64, 64, 0.06);
+}
+
+.ctrl-end:hover {
+  color: #AA5050;
+  border-color: rgba(138, 64, 64, 0.5);
+  background: rgba(138, 64, 64, 0.1);
+}
+
 /* ==================== EMPTY STATE ==================== */
 
 .empty-state {
