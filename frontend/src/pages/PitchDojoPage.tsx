@@ -296,7 +296,7 @@ export default function PitchDojoPage() {
     console.log(`[endPitch] frameBuffer size at end: ${frameBuffer.current.length}`)
 
     if (results.length === 0) {
-      console.warn('[endPitch] No snapshots — pitch may have been under 5 s or no face/pose was detected. Skipping API call.')
+      console.warn('[endPitch] No snapshots — pitch may have been under 2 s or no face/pose was detected. Skipping API call.')
     } else {
       try {
         console.log(`[endPitch] POST /pitch/sessions/${sessionId.current}/video-analysis`)
@@ -311,6 +311,7 @@ export default function PitchDojoPage() {
       }
     }
     setPitchActive(false)
+    navigate('/generate-analysis')
   }
 
   const canStart =

@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage'
 import BrainstormPage from './pages/BrainstormPage'
 import PitchDojoPage from './pages/PitchDojoPage'
 import ManifestPage from './pages/ManifestPage'
+import GenerateAnalysisPage from './pages/GenerateAnalysisPage'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/pitch-dojo" element={<PitchDojoPage />} />
         <Route path="/manifest" element={<ManifestPage />} />
         <Route path="/manifest/:sessionId" element={<ManifestPage />} />
+        <Route path="/generate-analysis" element={<GenerateAnalysisPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

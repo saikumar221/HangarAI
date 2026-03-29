@@ -745,13 +745,13 @@ body {
 .home-card-btn {
   align-self: flex-start;
   margin-top: 8px;
-  background: transparent;
-  border: 0.5px solid rgba(11, 19, 112, 0.35);
+  background: #0b1370;
+  border: none;
   font-family: inherit;
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: #0b1370;
+  color: #ffffff;
   cursor: pointer;
   padding: 10px 20px;
   border-radius: 4px;
@@ -759,16 +759,14 @@ body {
   align-items: center;
   gap: 8px;
   transition: background 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              border-color 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
               transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
               box-shadow 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .home-card-btn:hover:not(:disabled) {
-  background: rgba(11, 19, 112, 0.06);
-  border-color: rgba(11, 19, 112, 0.6);
+  background: #0d18a0;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(11, 19, 112, 0.12);
+  box-shadow: 0 4px 12px rgba(11, 19, 112, 0.28);
 }
 
 .home-card-btn:active:not(:disabled) {
@@ -862,27 +860,28 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: transparent;
-  border: 0.5px solid #D0CFCC;
+  background: #0b1370;
+  border: none;
   border-radius: 6px;
   padding: 9px 12px;
   font-family: inherit;
-  font-weight: 300;
+  font-weight: 400;
   font-size: 12px;
-  color: #9A9998;
+  color: #ffffff;
   cursor: pointer;
   letter-spacing: 0.01em;
-  transition: border-color 0.15s, color 0.15s;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .new-btn:hover {
-  border-color: #9A9998;
-  color: #6A6968;
+  background: #0d18a0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 19, 112, 0.28);
 }
 
 .plus {
   font-size: 14px;
-  color: #C0BFBD;
+  color: #ffffff;
 }
 
 .sidebar-section {
@@ -1088,22 +1087,22 @@ body {
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: #0b1370;
-  border: 0.5px solid rgba(11, 19, 112, 0.25);
-  background: rgba(11, 19, 112, 0.04);
+  color: #ffffff;
+  border: none;
+  background: #0b1370;
   padding: 6px 14px;
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              border-color 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+              transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              box-shadow 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   user-select: none;
 }
 
 .export-btn:hover {
-  background: rgba(11, 19, 112, 0.09);
-  border-color: rgba(11, 19, 112, 0.45);
+  background: #0d18a0;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 19, 112, 0.28);
 }
 
 /* ==================== MESSAGES ==================== */
@@ -1494,23 +1493,21 @@ body {
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.06em;
-  color: #0b1370;
-  background: rgba(11, 19, 112, 0.06);
-  border: 0.5px solid rgba(11, 19, 112, 0.3);
+  color: #ffffff;
+  background: #0b1370;
+  border: none;
   border-radius: 6px;
   padding: 9px 20px;
   cursor: pointer;
   transition: background 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              border-color 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
               transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
               box-shadow 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .start-btn:hover:not(:disabled) {
-  background: rgba(11, 19, 112, 0.12);
-  border-color: rgba(11, 19, 112, 0.5);
+  background: #0d18a0;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(11, 19, 112, 0.12);
+  box-shadow: 0 4px 12px rgba(11, 19, 112, 0.28);
 }
 
 .start-btn:active:not(:disabled) {
@@ -1551,19 +1548,19 @@ body {
 
 .call-back-btn {
   background: transparent;
-  border: 0.5px solid #D0CFCC;
+  border: 0.5px solid rgba(11, 19, 112, 0.35);
   border-radius: 5px;
-  color: #6A6968;
+  color: #0b1370;
   font-family: inherit;
   font-size: 13px;
   padding: 5px 10px;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .call-back-btn:hover {
-  color: #3A3938;
-  border-color: #9A9998;
+  background: rgba(11, 19, 112, 0.06);
+  border-color: #0b1370;
 }
 
 .call-manifest-title {
@@ -1715,32 +1712,30 @@ body {
 .ctrl-btn {
   font-family: inherit;
   font-size: 12px;
-  font-weight: 300;
+  font-weight: 400;
   letter-spacing: 0.05em;
-  color: #6A6968;
-  background: #fbf7f0;
-  border: 0.5px solid #D0CFCC;
+  color: #ffffff;
+  background: #0b1370;
+  border: none;
   border-radius: 6px;
   padding: 9px 20px;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .ctrl-btn:hover {
-  border-color: #9A9998;
-  color: #3A3938;
+  background: #0d18a0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 19, 112, 0.28);
 }
 
 .ctrl-end {
-  color: #0b1370;
-  border-color: rgba(11, 19, 112, 0.35);
-  background: rgba(11, 19, 112, 0.04);
+  background: #0b1370;
+  color: #ffffff;
 }
 
 .ctrl-end:hover {
-  color: #0b1370;
-  border-color: rgba(11, 19, 112, 0.55);
-  background: rgba(11, 19, 112, 0.09);
+  background: #0d18a0;
 }
 
 /* ==================== EMPTY STATE ==================== */
@@ -1930,21 +1925,21 @@ body {
 
 .manifest-back-btn {
   background: transparent;
-  border: 0.5px solid #D0CFCC;
+  border: 0.5px solid rgba(11, 19, 112, 0.35);
   font-family: inherit;
   font-size: 12px;
-  font-weight: 300;
+  font-weight: 400;
   letter-spacing: 0.02em;
-  color: #6A6968;
+  color: #0b1370;
   cursor: pointer;
   padding: 8px 16px;
   border-radius: 4px;
-  transition: border-color 0.2s, color 0.2s, transform 0.2s;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
 }
 
 .manifest-back-btn:hover {
-  border-color: #9A9998;
-  color: #3A3938;
+  background: rgba(11, 19, 112, 0.06);
+  border-color: #0b1370;
   transform: translateY(-1px);
 }
 

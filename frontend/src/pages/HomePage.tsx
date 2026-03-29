@@ -1,20 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
-import { logout } from '../api/auth'
 import { getUserManifest } from '../api/brainstorm'
 import AppNav from '../components/AppNav'
-
-function getInitials(firstName: string, lastName: string) {
-  return `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()
-}
 
 export default function HomePage() {
   const navigate = useNavigate()
   const user = useUser()
-  const [menuOpen, setMenuOpen] = useState(false)
   const [hasManifest, setHasManifest] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     getUserManifest()
@@ -22,25 +15,7 @@ export default function HomePage() {
       .catch(() => setHasManifest(false))
   }, [])
 
-  const handleLogout = () => {
-    logout()
-    navigate('/')
-  }
-
-  // Close menu on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  const initials = user ? getInitials(user.first_name, user.last_name) : '?'
   const displayName = user ? user.first_name : 'there'
-  const fullName = user ? `${user.first_name} ${user.last_name}` : ''
 
   return (
     <div className="home">
@@ -50,32 +25,6 @@ export default function HomePage() {
         <Link to="/home" className="home-logo">Hangar<span>AI</span></Link>
         <div className="home-nav-right">
           <AppNav />
-          <div className="avatar-wrap" ref={menuRef}>
-            <div
-              className="home-avatar"
-              onClick={() => setMenuOpen(prev => !prev)}
-              title={fullName}
-            >
-              {initials}
-            </div>
-            {menuOpen && (
-              <div className="avatar-menu">
-                <div className="avatar-menu-user">
-                  <div className="avatar-menu-name">{fullName}</div>
-                  <div className="avatar-menu-email">{user?.email}</div>
-                </div>
-                <div className="avatar-menu-divider" />
-                <button className="avatar-menu-logout" onClick={handleLogout}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
-                  </svg>
-                  Log out
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </nav>
 
