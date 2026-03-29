@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react'
+import { Link } from 'react-router-dom'
 import type { ChatItem, Phase } from '../types/brainstorm'
+import AppNav from './AppNav'
 
 interface Props {
   title: string
@@ -55,14 +57,12 @@ export default function ChatArea({
 
   return (
     <div className="chat">
-      <div className="chat-header">
-        <div className="chat-title">{title}</div>
-        <div className="header-right">
-          <div className="hlink" onClick={onClear}>Clear</div>
-          <div className="export-btn" onClick={onExport}>Export manifest</div>
+      <div className="chat-nav">
+        <Link to="/home" className="logo">Hangar<span>AI</span></Link>
+        <div className="chat-nav-right">
+          <AppNav />
         </div>
       </div>
-
       <div className="messages">
         {!sessionId ? (
           <div className="empty-state">
@@ -131,10 +131,16 @@ export default function ChatArea({
             disabled={isLoading || !sessionId}
           />
           <div className="input-footer">
-            <div className="input-hint">Return to send</div>
-            <button className="send-btn" onClick={handleSend} disabled={!canSend}>
-              <div className="send-arr" />
-            </button>
+            <div className="input-footer-left">
+              <div className="hlink" onClick={onClear}>Clear</div>
+              <div className="export-btn" onClick={onExport}>Export manifest</div>
+            </div>
+            <div className="input-footer-right">
+              <div className="input-hint">Return to send</div>
+              <button className="send-btn" onClick={handleSend} disabled={!canSend}>
+                <div className="send-arr" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

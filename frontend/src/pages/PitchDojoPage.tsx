@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import AppNav from '../components/AppNav'
 
 const MANIFEST = {
   one_liner: 'Hangar turns raw startup ideas into investor-ready pitches using AI',
@@ -170,7 +171,7 @@ export default function PitchDojoPage() {
     <div className="hangar-root">
       <aside className="sidebar">
         <div className="sidebar-top">
-          <div className="logo">Hangar<span>AI</span></div>
+          <Link to="/home" className="logo">Hangar<span>AI</span></Link>
         </div>
 
         <div className="sidebar-nav">
@@ -199,8 +200,9 @@ export default function PitchDojoPage() {
 
       <div className="pitch-main">
         <div className="chat-header">
-          <div className="chat-title">Pitch Dojo</div>
+          <Link to="/home" className="logo">Hangar<span>AI</span></Link>
           <div className="header-right">
+            <AppNav />
             <span className="hlink">Idea ready</span>
           </div>
         </div>

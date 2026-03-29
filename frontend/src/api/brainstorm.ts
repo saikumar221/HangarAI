@@ -54,6 +54,11 @@ export async function getMessages(sessionId: string): Promise<ApiMessage[]> {
   return res.json()
 }
 
+export async function deleteSession(sessionId: string): Promise<void> {
+  const res = await fetch(`${BASE}/session/${sessionId}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error('Failed to delete session')
+}
+
 export async function finalizeSession(sessionId: string): Promise<ApiManifest> {
   const res = await fetch(`${BASE}/session/${sessionId}/finalize`, { method: 'POST' })
   if (!res.ok) throw new Error('Failed to finalize session')

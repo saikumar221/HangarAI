@@ -1,6 +1,8 @@
-import { useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 import { logout } from '../api/auth'
+import AppNav from '../components/AppNav'
 
 const FEATURES = [
   {
@@ -25,43 +27,73 @@ function getInitials(firstName: string, lastName: string) {
   return `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()
 }
 
-function getGreeting() {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-  return 'Good evening'
-}
-
 export default function HomePage() {
   const navigate = useNavigate()
   const user = useUser()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = () => {
     logout()
     navigate('/')
   }
 
+  // Close menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
   const initials = user ? getInitials(user.first_name, user.last_name) : '?'
   const displayName = user ? user.first_name : 'there'
+  const fullName = user ? `${user.first_name} ${user.last_name}` : ''
 
   return (
     <div className="home">
 
       {/* Top nav */}
       <nav className="home-nav">
-        <div className="home-logo">Hangar<span>AI</span></div>
+        <Link to="/home" className="home-logo">Hangar<span>AI</span></Link>
         <div className="home-nav-right">
-          <div className="home-nav-link" onClick={handleLogout}>Log out</div>
-          <div className="home-avatar" title={user ? `${user.first_name} ${user.last_name}` : ''}>
-            {initials}
+          <AppNav />
+          <div className="avatar-wrap" ref={menuRef}>
+            <div
+              className="home-avatar"
+              onClick={() => setMenuOpen(prev => !prev)}
+              title={fullName}
+            >
+              {initials}
+            </div>
+            {menuOpen && (
+              <div className="avatar-menu">
+                <div className="avatar-menu-user">
+                  <div className="avatar-menu-name">{fullName}</div>
+                  <div className="avatar-menu-email">{user?.email}</div>
+                </div>
+                <div className="avatar-menu-divider" />
+                <button className="avatar-menu-logout" onClick={handleLogout}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                  Log out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </nav>
 
       {/* Header */}
       <header className="home-header">
-        <div className="home-greeting">{getGreeting()}, {displayName}.</div>
-        <h1 className="home-title">What are we building today?</h1>
+        <div className="home-greeting">Hello, {displayName}!</div>
+        <h1 className="home-title">Your idea, built right.</h1>
       </header>
 
       {/* Feature cards */}
@@ -69,7 +101,6 @@ export default function HomePage() {
         {FEATURES.map(f => (
           <div key={f.tag} className={`home-card${f.status === 'soon' ? ' home-card-dim' : ''}`}>
             <div className="home-card-top">
-              <div className="home-card-tag">{f.tag}</div>
               {f.status === 'soon' && <div className="home-card-badge">Coming soon</div>}
             </div>
             <div className="home-card-title">{f.title}</div>
@@ -84,17 +115,6 @@ export default function HomePage() {
             </button>
           </div>
         ))}
-      </section>
-
-      {/* Divider */}
-      <div className="home-rule" />
-
-      {/* Recent activity placeholder */}
-      <section className="home-activity">
-        <div className="home-section-label">Recent sessions</div>
-        <div className="home-activity-empty">
-          No sessions yet. Start your first brainstorm above.
-        </div>
       </section>
 
     </div>

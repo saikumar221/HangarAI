@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 const FEATURES = [
   {
@@ -26,7 +26,7 @@ export default function LandingPage() {
 
       {/* Nav */}
       <nav className="landing-nav">
-        <div className="landing-logo">Hangar<span>AI</span></div>
+        <Link to="/" className="landing-logo">Hangar<span>AI</span></Link>
         <div className="landing-nav-right">
           <button className="nav-link" onClick={() => navigate('/login')}>Log in</button>
           <button className="nav-cta" onClick={() => navigate('/signup')}>Sign up</button>
@@ -45,7 +45,6 @@ export default function LandingPage() {
         </p>
         <div className="landing-hero-actions">
           <button className="hero-btn-primary" onClick={() => navigate('/signup')}>Start for free</button>
-          <button className="hero-btn-ghost">See how it works</button>
         </div>
       </section>
 
@@ -73,7 +72,6 @@ export default function LandingPage() {
       <section className="landing-cta-strip">
         <div className="cta-strip-left">
           <div className="cta-strip-headline">Ready to stress-test your idea?</div>
-          <div className="cta-strip-sub">No pitch deck needed. Just start talking.</div>
         </div>
         <button className="hero-btn-primary" onClick={() => navigate('/signup')}>Get started</button>
       </section>

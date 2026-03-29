@@ -14,7 +14,7 @@ export default function Sidebar({ sessions, activeSessionId, onNewSession, onSel
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
-        <div className="logo">Hangar<span>AI</span></div>
+        <Link to="/home" className="logo">Hangar<span>AI</span></Link>
         <button className="new-btn" onClick={onNewSession}>
           <span className="plus">+</span> New session
         </button>

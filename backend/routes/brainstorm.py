@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.database import get_db
@@ -87,6 +87,25 @@ async def get_messages(
         .order_by(Message.created_at.asc())
     )
     return result.scalars().all()
+
+
+@router.delete("/session/{session_id}", status_code=204)
+async def delete_session(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    session = await db.get(BrainstormSession, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Delete child records first, then the session
+    await db.execute(delete(Message).where(Message.session_id == session_id))
+    await db.execute(delete(StartupManifest).where(StartupManifest.brainstorm_session_id == session_id))
+    await db.delete(session)
+    await db.commit()
+
+    # Clear in-memory agent state
+    _session_states.pop(str(session_id), None)
 
 
 @router.post("/session/{session_id}/finalize", response_model=StartupManifestOut)

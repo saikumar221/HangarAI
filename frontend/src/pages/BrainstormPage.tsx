@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react'
-import Sidebar from '../components/Sidebar'
 import ChatArea from '../components/ChatArea'
-import { createSession, sendMessage, finalizeSession } from '../api/brainstorm'
+import { createSession, sendMessage, finalizeSession, deleteSession } from '../api/brainstorm'
 import type { SessionRecord, ChatItem, Phase } from '../types/brainstorm'
 
 const SESSIONS_KEY = 'hangar_sessions'
@@ -134,18 +133,27 @@ export default function BrainstormPage() {
     }
   }, [activeId, isLoading, patchSession])
 
-  const handleClear = useCallback(() => setItems([]), [])
+  const handleClear = useCallback(async () => {
+    if (!activeId) return
+    try {
+      await deleteSession(activeId)
+    } catch (err) {
+      console.error('Failed to delete session', err)
+    }
+    setSessions(prev => {
+      const next = prev.filter(s => s.id !== activeId)
+      persist(next)
+      return next
+    })
+    setActiveId(null)
+    setItems([])
+    setPhase('exploring')
+  }, [activeId])
 
   const activeSession = sessions.find(s => s.id === activeId)
 
   return (
     <div className="hangar-root">
-      <Sidebar
-        sessions={sessions}
-        activeSessionId={activeId}
-        onNewSession={handleNewSession}
-        onSelectSession={handleSelectSession}
-      />
       <ChatArea
         title={activeSession?.title ?? 'HangarAI'}
         sessionId={activeId}
