@@ -42,8 +42,8 @@ class AgentState(TypedDict):
 
 # Number of human turns required before advancing to the next phase
 _PHASE_THRESHOLDS: dict[Phase, int] = {
-    "exploring": 5,
-    "challenging": 10,
+    "exploring": 3,
+    "challenging": 3,
 }
 
 

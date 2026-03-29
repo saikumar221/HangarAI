@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/brainstorm': 'http://localhost:8000',
+      '/health': 'http://localhost:8000',
     },
   },
 })
