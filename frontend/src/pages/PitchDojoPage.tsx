@@ -189,9 +189,9 @@ export default function PitchDojoPage() {
       })
     }
 
-    // Every 5 seconds flush the buffer into a snapshot
+    // Every 2 seconds flush the buffer into a snapshot
     const elapsedSec = (now - pitchStartRef.current) / 1000
-    if (elapsedSec - lastSnapshotRef.current >= 5 && frameBuffer.current.length > 0) {
+    if (elapsedSec - lastSnapshotRef.current >= 2 && frameBuffer.current.length > 0) {
       const frames = frameBuffer.current
       const avg = (key: keyof Omit<FrameMetrics, 'headPos'>) =>
         frames.reduce((s, f) => s + f[key], 0) / frames.length
@@ -252,7 +252,7 @@ export default function PitchDojoPage() {
             audioWs.send(e.data)
           }
         }
-        recorder.start(1500) // 1.5 s chunks — keeps header+chunk under Hume's 5 s limit
+        recorder.start(2000) // 2 s chunks — header (2s) + chunk (2s) = 4s, under Hume's 5s limit
 
         // — MediaPipe RAF loop —
         pitchStartRef.current = performance.now()
@@ -272,10 +272,20 @@ export default function PitchDojoPage() {
     start()
 
     return () => {
-      recorderRef.current?.stop()
-      audioWsRef.current?.close()
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       streamRef.current?.getTracks().forEach(t => t.stop())
+
+      // Close the WebSocket only after the recorder flushes its final chunk.
+      // onstop fires after ondataavailable, so the last audio chunk reaches
+      // the backend before the connection closes.
+      const ws = audioWsRef.current
+      const recorder = recorderRef.current
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.onstop = () => ws?.close()
+        recorder.stop()
+      } else {
+        ws?.close()
+      }
     }
   }, [pitchActive])
 

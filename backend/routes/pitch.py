@@ -46,32 +46,36 @@ async def audio_stream(websocket: WebSocket, session_id: str):
 
     async with client.expression_measurement.stream.connect() as hume_socket:
         webm_header: bytes = b""
+        chunk_index = 0
+        audio_scores = []  # [{timestamp, emotions}]
+
         try:
             while True:
                 data = await websocket.receive_bytes()
-                print(f"[pitch:{session_id}] audio chunk — {len(data)} bytes")
 
                 if not webm_header:
-                    # First chunk contains the WebM header — use as-is and save it
                     webm_header = data
                     payload = data
                 else:
-                    # Prepend header so each chunk is a parseable WebM file
                     payload = webm_header + data
+
+                chunk_index += 1
+                timestamp = chunk_index * 2  # 2 s chunks
 
                 b64_audio = base64.b64encode(payload).decode()
                 try:
                     response = await hume_socket.send_file(file_=b64_audio, config=config)
                 except Exception as e:
-                    # print(f"[pitch:{session_id}] hume error: {e}")
+                    print(f"[pitch:{session_id}] t={timestamp}s hume send error: {e}")
                     continue
 
                 if not isinstance(response, StreamModelPredictions):
-                    # print(f"[pitch:{session_id}] hume: {response}")
+                    print(f"[pitch:{session_id}] t={timestamp}s unexpected response type: {type(response).__name__} — {response}")
                     continue
 
                 prosody = response.prosody
                 if not prosody or not prosody.predictions:
+                    print(f"[pitch:{session_id}] t={timestamp}s no prosody predictions in response")
                     continue
 
                 for prediction in prosody.predictions:
@@ -86,7 +90,11 @@ async def audio_stream(websocket: WebSocket, session_id: str):
                         key=lambda x: x[1],
                         reverse=True,
                     )
-                    # print(f"[pitch:{session_id}] emotions: {top}")
+                    audio_scores.append({"timestamp": timestamp, "emotions": top})
 
         except WebSocketDisconnect:
-            print(f"[pitch:{session_id}] audio WebSocket disconnected")
+            print(f"[pitch:{session_id}] audio scores ({len(audio_scores)} chunks):")
+            print(audio_scores)
+            for entry in audio_scores:
+                emotions_str = " | ".join(f"{name}={score:.4f}" for name, score in entry["emotions"][:5])
+                print(f"[pitch:{session_id}] t={entry['timestamp']}s | {emotions_str}")
