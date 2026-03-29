@@ -28,3 +28,5 @@ node_modules/
 # Misc
 *.log
 .DS_Store
+.env.example
+Architecture.md
