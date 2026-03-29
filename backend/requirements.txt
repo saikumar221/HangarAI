@@ -4,3 +4,6 @@ sqlalchemy[asyncio]
 asyncpg
 pydantic
 python-dotenv
+langgraph
+langchain-core
+langchain-google-genai
