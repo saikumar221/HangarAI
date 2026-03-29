@@ -64,12 +64,25 @@ HangarAI/
 
 ### Backend
 
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
 ```bash
+# 1. Start PostgreSQL
+docker compose up -d
+
+# 2. Set up environment
+cp .env.example .env
+
+# 3. Create and activate virtual environment
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
-cp backend/.env.example backend/.env
-uvicorn backend.main:app --reload
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# 4. Install dependencies
+cd backend
+pip install -r requirements.txt
+
+# 5. Start the server (tables are auto-created on first run)
+uvicorn main:app --reload
 ```
 
 ### Frontend
