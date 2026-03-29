@@ -1,4 +1,4 @@
-import { getAuthToken } from './auth'
+import { authHeaders } from './auth'
 
 const BASE = '/brainstorm'
 
@@ -30,11 +30,6 @@ export interface ApiManifest {
   differentiators: string[] | null
   key_assumptions: string[] | null
   created_at: string
-}
-
-function authHeaders(): HeadersInit {
-  const token = getAuthToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 export async function getSessions(): Promise<ApiSession[]> {

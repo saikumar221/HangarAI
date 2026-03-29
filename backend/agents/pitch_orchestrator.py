@@ -25,6 +25,8 @@ from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, START, StateGraph
 
+from core.utils import parse_json_response
+
 load_dotenv()
 
 
@@ -57,49 +59,6 @@ class PitchAnalysisState(TypedDict):
 # ---------------------------------------------------------------------------
 # Utilities
 # ---------------------------------------------------------------------------
-
-
-def _escape_control_chars_in_strings(s: str) -> str:
-    """Walk the JSON text character-by-character and escape literal control
-    characters (newline, carriage return, tab) that appear inside string values.
-    Gemini sometimes emits multi-paragraph text with raw newlines, which is
-    invalid JSON even though it looks fine in a text editor.
-    """
-    result: list[str] = []
-    in_string = False
-    escaped = False
-    for ch in s:
-        if escaped:
-            result.append(ch)
-            escaped = False
-        elif ch == "\\" and in_string:
-            result.append(ch)
-            escaped = True
-        elif ch == '"':
-            result.append(ch)
-            in_string = not in_string
-        elif in_string and ch == "\n":
-            result.append("\\n")
-        elif in_string and ch == "\r":
-            result.append("\\r")
-        elif in_string and ch == "\t":
-            result.append("\\t")
-        else:
-            result.append(ch)
-    return "".join(result)
-
-
-def _parse_json_response(raw: str) -> dict | list:
-    raw = raw.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return json.loads(_escape_control_chars_in_strings(raw))
 
 
 def _format_manifest(manifest: dict) -> str:
@@ -378,7 +337,7 @@ async def _run_audio_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisStat
         audio_timeline=_format_audio_timeline(state["audio_segments"]),
     )
     response = await llm.ainvoke([HumanMessage(content=prompt)])
-    return _parse_json_response(response.content)
+    return parse_json_response(response.content)
 
 
 async def _run_video_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisState) -> dict:
@@ -387,7 +346,7 @@ async def _run_video_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisStat
         video_timeline=_format_video_timeline(state["video_snapshots"]),
     )
     response = await llm.ainvoke([HumanMessage(content=prompt)])
-    return _parse_json_response(response.content)
+    return parse_json_response(response.content)
 
 
 async def _run_transcript_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisState) -> dict:
@@ -398,7 +357,7 @@ async def _run_transcript_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysi
         transcript=_format_transcript(state["transcripts"]),
     )
     response = await llm.ainvoke([HumanMessage(content=prompt)])
-    return _parse_json_response(response.content)
+    return parse_json_response(response.content)
 
 
 async def _run_synthesis(
@@ -418,7 +377,7 @@ async def _run_synthesis(
         transcript_insights=json.dumps(transcript_insights, indent=2),
     )
     response = await llm.ainvoke([HumanMessage(content=prompt)])
-    return _parse_json_response(response.content)
+    return parse_json_response(response.content)
 
 
 # ---------------------------------------------------------------------------

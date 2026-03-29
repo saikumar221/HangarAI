@@ -1,13 +1,6 @@
-import { getAuthToken } from './auth'
+import { authHeaders } from './auth'
 
-const BASE = 'http://localhost:8000/pitch'
-
-function authHeaders(): HeadersInit {
-  const token = getAuthToken()
-  return token
-    ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-    : { 'Content-Type': 'application/json' }
-}
+const BASE = '/pitch'
 
 // Creates the session row in the DB before the audio WebSocket opens.
 // Maps camelCase InvestorForm fields to the snake_case API schema.
@@ -24,7 +17,7 @@ export async function createPitchSession(
 ): Promise<void> {
   const res = await fetch(`${BASE}/sessions`, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       session_id: sessionId,
       investor_first_name: investor.firstName,
@@ -94,7 +87,7 @@ export interface AnalysisReport {
 }
 
 export async function generateAnalysis(sessionId: string): Promise<AnalysisReport> {
-  const res = await fetch(`http://localhost:8000/analysis/pitch/${sessionId}`, {
+  const res = await fetch(`/analysis/pitch/${sessionId}`, {
     method: 'POST',
     headers: authHeaders(),
   })

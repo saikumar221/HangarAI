@@ -1,11 +1,12 @@
 import os
-import json
 from typing import TypedDict, Literal, Optional
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, START, END
+
+from core.utils import parse_json_response
 
 load_dotenv()
 
@@ -111,16 +112,9 @@ def _extract_manifest(llm: ChatGoogleGenerativeAI, messages: list[BaseMessage]) 
     )
     prompt = _MANIFEST_EXTRACTION_PROMPT.format(conversation=conversation)
     response = llm.invoke([HumanMessage(content=prompt)])
-    raw = response.content.strip()
-
-    # Strip markdown code fences if Gemini wraps the JSON in ```json ... ```
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
+        return parse_json_response(response.content)
+    except Exception:
         return {}
 
 

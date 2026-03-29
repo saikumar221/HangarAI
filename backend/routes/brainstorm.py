@@ -87,11 +87,14 @@ async def create_session(
 async def chat_turn(
     session_id: uuid.UUID,
     body: ChatRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     session = await db.get(BrainstormSession, session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     key = str(session_id)
     # Load existing agent state or start fresh if not found (e.g. after restart)
@@ -114,12 +117,15 @@ async def chat_turn(
 @router.get("/session/{session_id}/messages", response_model=list[MessageOut])
 async def get_messages(
     session_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     # Returns all messages for a session ordered oldest-first
     session = await db.get(BrainstormSession, session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     result = await db.execute(
         select(Message)
@@ -132,11 +138,14 @@ async def get_messages(
 @router.delete("/session/{session_id}", status_code=204)
 async def delete_session(
     session_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     session = await db.get(BrainstormSession, session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     # Delete child records first, then the session
     await db.execute(delete(Message).where(Message.session_id == session_id))

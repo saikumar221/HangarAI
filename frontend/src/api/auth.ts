@@ -48,6 +48,11 @@ export function getAuthToken(): string | null {
   return localStorage.getItem('token')
 }
 
+export function authHeaders(): HeadersInit {
+  const token = getAuthToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export function getStoredUser(): StoredUser | null {
   try {
     return JSON.parse(localStorage.getItem('user') ?? 'null')

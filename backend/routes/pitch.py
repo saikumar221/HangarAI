@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+import logging
 import os
 import uuid
 
@@ -18,10 +19,13 @@ from db.models import PitchSession, PitchVideoSnapshot, PitchAudioSegment, Pitch
 from core.security import get_current_user
 from core.utils import parse_uuid
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 HUME_API_KEY = os.getenv("HUME_API_KEY")
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
+
+MAX_AUDIO_BYTES = 50 * 1024 * 1024  # 50 MB hard cap on accumulated audio
 
 
 class CreatePitchSessionRequest(BaseModel):
@@ -53,7 +57,7 @@ async def create_pitch_session(
     manifest = manifest_result.scalar_one_or_none()
 
     pitch_session = PitchSession(
-        id=uuid.UUID(body.session_id),
+        id=parse_uuid(body.session_id),
         user_id=current_user.id,
         manifest_id=manifest.id if manifest else None,
         investor_first_name=body.investor_first_name,
@@ -71,10 +75,14 @@ async def create_pitch_session(
 async def receive_video_analysis(
     session_id: str,
     snapshots: list[VideoInsightSnapshot],
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(PitchSession).where(PitchSession.id == parse_uuid(session_id))
+        select(PitchSession).where(
+            PitchSession.id == parse_uuid(session_id),
+            PitchSession.user_id == current_user.id,
+        )
     )
     pitch_session = result.scalar_one_or_none()
     if not pitch_session:
@@ -91,7 +99,7 @@ async def receive_video_analysis(
         ))
 
     await db.commit()
-    print(f"[pitch:{session_id}] saved {len(snapshots)} video snapshots")
+    logger.info("[pitch:%s] saved %d video snapshots", session_id, len(snapshots))
     return {"session_id": session_id, "saved": len(snapshots)}
 
 
@@ -203,7 +211,7 @@ async def audio_stream(websocket: WebSocket, session_id: str):
                 try:
                     response = await hume_socket.send_file(file_=b64_audio, config=hume_config)
                 except Exception as e:
-                    print(f"[pitch:{session_id}] hume send error: {e}")
+                    logger.error("[pitch:%s] hume send error: %s", session_id, e)
                     continue
 
                 print(f"[pitch:{session_id}] hume response type: {type(response).__name__}")
@@ -234,7 +242,7 @@ async def audio_stream(websocket: WebSocket, session_id: str):
                         print(f"[pitch:{session_id}] emotion segment at {start_time:.1f}s: {top_emotions[0]['name']}")
 
         except WebSocketDisconnect:
-            print(f"[pitch:{session_id}] audio WebSocket disconnected")
+            logger.info("[pitch:%s] audio WebSocket disconnected", session_id)
 
     # ── Finish Deepgram ──────────────────────────────────────────────────────
     # finalize() sends {"type":"Finalize"} so Deepgram flushes and emits
@@ -255,7 +263,7 @@ async def audio_stream(websocket: WebSocket, session_id: str):
             select(PitchSession).where(PitchSession.id == parse_uuid(session_id))
         )
         if not result.scalar_one_or_none():
-            print(f"[pitch:{session_id}] session not found, skipping save")
+            logger.warning("[pitch:%s] session not found, skipping save", session_id)
         else:
             for start_time, end_time, emotions in audio_segments:
                 db.add(PitchAudioSegment(
