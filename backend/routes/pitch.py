@@ -1,7 +1,6 @@
 import base64
 import os
 import uuid
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -14,6 +13,7 @@ from hume.expression_measurement.stream.stream.types.stream_model_predictions im
 from db.database import get_db, AsyncSessionLocal
 from db.models import PitchSession, PitchVideoSnapshot, PitchAudioSegment, StartupManifest, User
 from core.security import get_current_user
+from core.utils import parse_uuid
 
 router = APIRouter()
 
@@ -69,11 +69,11 @@ async def create_pitch_session(
 @router.post("/sessions/{session_id}/video-analysis")
 async def receive_video_analysis(
     session_id: str,
-    snapshots: List[VideoInsightSnapshot],
+    snapshots: list[VideoInsightSnapshot],
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(PitchSession).where(PitchSession.id == uuid.UUID(session_id))
+        select(PitchSession).where(PitchSession.id == parse_uuid(session_id))
     )
     pitch_session = result.scalar_one_or_none()
     if not pitch_session:
@@ -167,7 +167,7 @@ async def audio_stream(websocket: WebSocket, session_id: str):
     if audio_segments:
         async with AsyncSessionLocal() as db:
             result = await db.execute(
-                select(PitchSession).where(PitchSession.id == uuid.UUID(session_id))
+                select(PitchSession).where(PitchSession.id == parse_uuid(session_id))
             )
             if result.scalar_one_or_none():
                 for start_time, end_time, emotions in audio_segments:

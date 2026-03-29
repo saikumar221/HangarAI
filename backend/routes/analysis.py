@@ -1,4 +1,4 @@
-import uuid
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.pitch_orchestrator import analyze_pitch
 from core.security import get_current_user
+from core.utils import parse_uuid
 from db.database import get_db
 from db.models import (
     PitchAudioSegment,
@@ -15,6 +16,7 @@ from db.models import (
     User,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -31,10 +33,11 @@ async def generate_pitch_analysis(
     report containing an improvement roadmap, a confidence graph, and
     the investor-persona verdict.
     """
-    # Verify the session belongs to this user
+    session_uuid = parse_uuid(session_id)
+
     session_result = await db.execute(
         select(PitchSession).where(
-            PitchSession.id == uuid.UUID(session_id),
+            PitchSession.id == session_uuid,
             PitchSession.user_id == current_user.id,
         )
     )
@@ -42,7 +45,6 @@ async def generate_pitch_analysis(
     if not session:
         raise HTTPException(status_code=404, detail="Pitch session not found")
 
-    # Audio segments ordered by start_time
     audio_result = await db.execute(
         select(PitchAudioSegment)
         .where(PitchAudioSegment.pitch_session_id == session.id)
@@ -57,7 +59,6 @@ async def generate_pitch_analysis(
         for seg in audio_result.scalars().all()
     ]
 
-    # Video snapshots ordered by timestamp
     video_result = await db.execute(
         select(PitchVideoSnapshot)
         .where(PitchVideoSnapshot.pitch_session_id == session.id)
@@ -74,7 +75,6 @@ async def generate_pitch_analysis(
         for snap in video_result.scalars().all()
     ]
 
-    # Startup manifest (optional — gives the agents rich pitch context)
     manifest: dict = {}
     if session.manifest_id:
         manifest_result = await db.execute(
@@ -95,14 +95,18 @@ async def generate_pitch_analysis(
 
     investor_name = f"{session.investor_first_name} {session.investor_last_name}"
 
-    analysis = await analyze_pitch(
-        investor_name=investor_name,
-        investor_company=session.investor_company,
-        investor_notes=session.investor_notes,
-        manifest=manifest,
-        audio_segments=audio_segments,
-        video_snapshots=video_snapshots,
-    )
+    try:
+        analysis = await analyze_pitch(
+            investor_name=investor_name,
+            investor_company=session.investor_company,
+            investor_notes=session.investor_notes,
+            manifest=manifest,
+            audio_segments=audio_segments,
+            video_snapshots=video_snapshots,
+        )
+    except Exception as exc:
+        logger.exception("Pitch analysis failed for session %s", session_id)
+        raise HTTPException(status_code=503, detail="Analysis service unavailable") from exc
 
     return {
         "session_id": session_id,

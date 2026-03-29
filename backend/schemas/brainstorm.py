@@ -27,10 +27,6 @@ class Token(BaseModel):
 
 # --- BrainstormSession ---
 
-class BrainstormSessionCreate(BaseModel):
-    user_id: uuid.UUID | None = None
-
-
 class BrainstormSessionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -43,11 +39,6 @@ class BrainstormSessionOut(BaseModel):
 
 # --- Message ---
 
-class MessageCreate(BaseModel):
-    role: str
-    content: str
-
-
 class MessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -59,17 +50,6 @@ class MessageOut(BaseModel):
 
 
 # --- StartupManifest ---
-
-class StartupManifestCreate(BaseModel):
-    one_liner: str | None = None
-    problem: str | None = None
-    solution: str | None = None
-    target_customer: str | None = None
-    market_size: str | None = None
-    competitors: list | None = None
-    differentiators: list | None = None
-    key_assumptions: list | None = None
-
 
 class StartupManifestOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
