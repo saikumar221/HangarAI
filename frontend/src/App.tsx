@@ -20,7 +20,7 @@ export default function App() {
         <Route path="/pitch-dojo" element={<PitchDojoPage />} />
         <Route path="/manifest" element={<ManifestPage />} />
         <Route path="/manifest/:sessionId" element={<ManifestPage />} />
-        <Route path="/generate-analysis" element={<GenerateAnalysisPage />} />
+        <Route path="/generate-analysis/:sessionId" element={<GenerateAnalysisPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

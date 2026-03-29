@@ -36,3 +36,55 @@ export async function createPitchSession(
   })
   if (!res.ok) throw new Error('Failed to create pitch session')
 }
+
+export interface AnalysisReport {
+  session_id: string
+  investor_name: string
+  investor_company: string
+  audio_insights: {
+    vocal_confidence_score: number
+    confidence_trend: string
+    pacing_score: number
+    emotion_highlights: { timestamp: number; emotion: string; score: number; interpretation: string }[]
+    key_vocal_patterns: string[]
+    vocal_summary: string
+  }
+  video_insights: {
+    visual_presence_score: number
+    avg_eye_contact: number
+    avg_expression: number
+    avg_posture: number
+    visual_patterns: string[]
+    visual_summary: string
+  }
+  improvement_roadmap: {
+    section: string
+    priority: 'Critical' | 'High' | 'Medium' | 'Low'
+    issue: string
+    suggestion: string
+  }[]
+  confidence_graph: {
+    timestamp: number
+    confidence_score: number
+    dominant_emotion: string | null
+    eye_contact: number
+    expression: number
+    posture: number
+  }[]
+  verdict: {
+    pre_seed_readiness_score: number
+    investor_persona_summary: string
+    strengths: string[]
+    critical_weaknesses: string[]
+    go_decision: string
+  }
+}
+
+export async function generateAnalysis(sessionId: string): Promise<AnalysisReport> {
+  const res = await fetch(`http://localhost:8000/analysis/pitch/${sessionId}`, {
+    method: 'POST',
+    headers: authHeaders(),
+  })
+  if (!res.ok) throw new Error('Failed to generate analysis')
+  return res.json()
+}

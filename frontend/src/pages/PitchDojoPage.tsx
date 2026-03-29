@@ -316,7 +316,7 @@ export default function PitchDojoPage() {
       }
     }
     setPitchActive(false)
-    navigate('/generate-analysis')
+    navigate(`/generate-analysis/${sessionId.current}`)
   }
 
   const canStart =
