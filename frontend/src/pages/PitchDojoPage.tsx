@@ -116,6 +116,9 @@ export default function PitchDojoPage() {
   const [pitchActive, setPitchActive] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
   const [, setSnapshots] = useState<InsightSnapshot[]>([])
+  const [transcriptLines, setTranscriptLines] = useState<string[]>([])
+  const [interimText, setInterimText] = useState('')
+  const transcriptEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     getUserManifest()
@@ -146,6 +149,11 @@ export default function PitchDojoPage() {
       poseLandmarkerRef.current?.close()
     }
   }, [])
+
+  // Auto-scroll transcript to bottom when new lines arrive
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [transcriptLines, interimText])
 
   async function initMediaPipe() {
     // Reuse across pitch sessions — only load once
@@ -243,9 +251,28 @@ export default function PitchDojoPage() {
         // otherwise the server can't associate incoming audio segments with a session
         await createPitchSession(sessionId.current, form)
 
+        // Reset live transcript for this session
+        setTranscriptLines([])
+        setInterimText('')
+
         // — Audio WebSocket —
         const audioWs = new WebSocket(`${WS_BASE}/${sessionId.current}/audio`)
         audioWsRef.current = audioWs
+
+        // Receive live transcript updates from the backend (Deepgram live streaming)
+        audioWs.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data as string)
+            if (msg.type === 'transcript') {
+              if (msg.is_final) {
+                setTranscriptLines(prev => [...prev, msg.text as string])
+                setInterimText('')
+              } else {
+                setInterimText(msg.text as string)
+              }
+            }
+          } catch { /* ignore non-JSON frames */ }
+        }
 
         const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
           ? 'audio/webm;codecs=opus'
@@ -380,7 +407,21 @@ export default function PitchDojoPage() {
 
         <div className="call-transcript">
           <div className="call-transcript-label">Transcript</div>
-          <div className="call-transcript-text">Waiting for you to begin your pitch...</div>
+          <div className="call-transcript-text">
+            {transcriptLines.length === 0 && !interimText ? (
+              <span style={{ color: '#C0BFBD' }}>Waiting for you to begin your pitch...</span>
+            ) : (
+              <>
+                {transcriptLines.slice(-4).map((line, i) => (
+                  <span key={i} className="call-transcript-line">{line}</span>
+                ))}
+                {interimText && (
+                  <span className="call-transcript-interim">{interimText}</span>
+                )}
+                <div ref={transcriptEndRef} />
+              </>
+            )}
+          </div>
         </div>
 
         <div className="call-controls">

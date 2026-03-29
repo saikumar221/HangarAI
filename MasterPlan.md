@@ -39,27 +39,48 @@ founders take for granted.
 - Feature 1: Idea Finalization: A React chat interface where a Consultant Agent uses iCoT to challenge the founder, surface competitors, and extract a finalized manifest into the DB.
 - Feature 2: The Pitch Dojo: A live pitch simulation. Users enter an investor's details, deliver their pitch on camera, and get a full post-pitch report — improvement roadmap, confidence graph, and a verdict written in the investor's voice. (Live persona interjections during the pitch are on the roadmap, not yet implemented.)
 
+
 ## Differentiation Strategy
-| Competitor | What they do | Why Hangar wins |
-|------------|-------------|-----------------|
-| Yoodli | Speech coaching, tracks filler words and pacing | No idea validation layer, no investor personas, no manifest |
-| PitchBob | AI feedback on your pitch deck | Deck-only, no live simulation, no real-time audio/video |
-| Poised | Real-time coaching during meetings | Generic meeting context, not built for founder/investor dynamics |
 
-Incumbents are optimized for recurring enterprise meeting coaching — not the single high-stakes pitch. Each Pitch Dojo session feeds back into the Startup Manifest, making persona questions sharper over time. That compounding feedback loop is what generic speech tools cannot replicate.
+| Competitor | What they do | What they miss |
+|------------|-------------|----------------|
+| Pitch.com, Beautiful.ai, Gamma | Optimize the deck artifact | No concept of delivery — a great deck with a nervous founder still loses the meeting |
+| Slidebean | AI feedback on pitch narrative/structure | Text-only, deck-only, no live simulation, no audio/video |
+| Yoodli, Poised, Orai | Speech coaching — filler words, pacing, eye contact | Domain-blind: identical feedback for a wedding toast and a Series A pitch; no startup context |
+| Speeko | General communication confidence coaching | Not investor-specific; no manifest, no persona, no multimodal signal |
+| Otter.ai, Fireflies.ai, SpeakAI | Transcription + basic sentiment | Recorders, not evaluators — answer "what did you say?" not "were you convincing?" |
+| Human coaches / accelerator advisors | Real signal, but expensive and unschedulable | Inconsistent, not repeatable, no structured timestamped output |
 
-The structural difference is that Hangar's feedback loop is grounded in a validated idea layer — the Startup Manifest — meaning persona questions aren't generic pitch coaching prompts but targeted challenges derived from the specific weaknesses identified in the founder's own thesis. No competitor can replicate this without also building the idea validation layer.
+### The fundamental gap none of them close
 
-Hangar's one-liner: The only tool that takes a founder from raw messy idea → structured manifest → live multimodal pitch simulation in a single stateful flow.
+Every existing tool analyzes one layer — content *or* delivery *or* presence — in isolation. None of them connect the content layer to the delivery layer.
+
+That connection is the only thing that matters. A tool that doesn't know your startup's thesis cannot tell you that your vocal confidence collapsed at the exact moment you made a claim your business model can't support. It cannot tell you that your posture shifted when you named your competitor.
+
+Hangar's Startup Manifest threads through the entire pipeline. The analysis agents know what you *should* be saying before they judge how you said it. When confidence drops at second 47, the system knows whether that was your hardest claim to defend — because it helped you build that claim in the first place. No existing tool can do this. They have no memory of your startup.
+
+The structural moat: Yoodli or Poised could add an investor persona chatbot in a sprint. They cannot replicate Manifest-grounded question generation without also building the idea validation layer — a fundamentally different product surface that would cannibalize their enterprise meeting coaching positioning.
+
+**One-liner:** The only tool that takes a founder from raw messy idea → structured manifest → live multimodal pitch simulation in a single stateful flow — where context from step one informs the verdict in step three.
+
 
 ## Scalability Design
-- Client-side vision: MediaPipe runs entirely in the browser — zero per-user backend WASM overhead. The backend only receives lightweight JSON snapshots.
-- Session-isolated state machines: Each Pitch Dojo session runs in its own LangGraph invocation. Concurrent users don't interfere with each other.
-- Decoupled agents: Audio Agent (Hume) and Video Agent (Gemini/MediaPipe) are independently deployable. Either can be scaled, swapped, or stubbed without affecting the orchestration layer.
-- At 10x load (concurrent Dojo sessions): each session's LangGraph instance is stateless and independently deployable — horizontal scaling requires adding FastAPI workers behind a load balancer with sticky WebSocket routing. At 100x: the primary bottleneck is Hume AI and Gemini API rate limits, not infrastructure. The decoupled agent design means either can be swapped for self-hosted alternatives without touching the orchestration layer.
 
-**Manifest portability (roadmap):** A `GET /manifests/{id}` public endpoint could expose the manifest JSON for third-party deck tools or CRMs — not yet implemented.
+### Current architecture properties
+- **Client-side vision:** MediaPipe runs entirely in the browser — zero per-user backend WASM overhead. The backend only receives lightweight JSON snapshots (~2KB per 2s window), keeping the hot path thin regardless of session count.
+- **Session-isolated state machines:** Each Pitch Dojo session runs in its own LangGraph invocation. Concurrent users don't share graph state and cannot interfere with each other.
+- **Decoupled agents:** Audio Agent (Hume) and Video Agent (Gemini) are independently invoked within the orchestrator. Either can be scaled, swapped, or stubbed without modifying the orchestration layer.
 
+### At 10x load (~50–100 concurrent sessions)
+The bottleneck shifts from compute to WebSocket session affinity. Each active Dojo session holds an open WebSocket connection for live audio streaming. Behind a standard round-robin load balancer, a reconnect or failover would land on a different worker with no knowledge of the in-flight session. The fix is **sticky routing** (e.g., nginx `ip_hash` or a cookie-pinned upstream) so each session stays on the same worker for its lifetime. This works cleanly at 10x since session lifetimes are short (5–15 min) and churn is manageable. The LangGraph orchestrator fires only at session end, so it doesn't hold long-lived state during the live pitch — just at analysis time.
+
+### At 100x load (~500–1,000 concurrent sessions)
+Sticky routing becomes a liability — a worker crash takes down all sessions pinned to it. The solution is to externalize WebSocket session state into **Redis**. Each audio chunk received is written to a Redis stream keyed by `session_id`. Any worker can pick up the stream, so the load balancer no longer needs affinity. Workers become fully stateless and horizontally scalable. LangGraph's in-memory graph state (brainstorm conversation history, agent scratchpads) would similarly need to move to a Redis-backed checkpointer — LangGraph supports this natively via `RedisSaver` — so an orchestrator invocation can resume on any worker without re-running prior nodes.
+
+At this tier the hard ceiling becomes **Hume AI and Gemini API rate limits**, not infrastructure. Hume's prosody batch endpoint has per-account concurrency caps; Gemini 2.5 Flash has per-minute token quotas. Mitigation paths: (1) request-level retry with exponential backoff already isolates failures per session; (2) a self-hosted Whisper + open-source emotion model can replace Hume for the vocal analysis path without touching the orchestration layer; (3) Gemini can be replaced with a self-hosted vision model or load-balanced across multiple API keys.
+
+### Manifest portability (roadmap)
+A `GET /manifests/{id}` public endpoint could expose the manifest JSON for third-party deck tools or CRMs — not yet implemented.
 
 ## Startup Manifest Schema
 
