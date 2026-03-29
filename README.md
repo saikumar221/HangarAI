@@ -33,11 +33,11 @@ After each session, founders receive:
 **Backend**
 - Python, FastAPI, LangGraph, Gemini API
 - PostgreSQL (SQLAlchemy async)
-- Deepgram (STT), Hume AI (audio emotion), LiveKit (AV streaming)
+- Deepgram (STT), Hume AI (prosody batch analysis), Gemini 2.5 Flash (vision analysis)
 
 **Frontend**
 - React + TypeScript, Vite
-- MediaPipe (client-side video analysis)
+- Native `getUserMedia()` + `MediaRecorder` + dual WebSocket connections (audio @ 3s chunks, video @ 1fps JPEG)
 
 ## Project Structure
 
