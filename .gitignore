@@ -30,3 +30,5 @@ node_modules/
 .DS_Store
 .env.example
 Architecture.md
+
+test_gemini.py
