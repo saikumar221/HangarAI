@@ -30,12 +30,54 @@ After each session, founders receive:
 
 ## Tech Stack
 
+**Backend**
+- Python, FastAPI, LangGraph
+- PostgreSQL (SQLAlchemy async)
+- Deepgram (STT), Hume AI (audio emotion), LiveKit (AV streaming)
 
-_Coming soon_
+**Frontend**
+- React + TypeScript, Vite
+- MediaPipe (client-side video analysis)
 
+## Project Structure
+
+```
+HangarAI/
+├── backend/
+│   ├── main.py          # FastAPI entry point
+│   ├── routes/          # API route handlers
+│   ├── agents/          # LangGraph agents
+│   ├── db/              # Database models & session
+│   ├── schemas/         # Pydantic schemas
+│   ├── core/            # Config, dependencies, shared utilities
+│   └── requirements.txt
+└── frontend/
+    └── src/
+        ├── components/
+        ├── pages/
+        ├── hooks/
+        ├── lib/
+        └── types/
+```
 
 ## Setup
 
+### Backend
 
-_Coming soon_
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+uvicorn backend.main:app --reload
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
 
