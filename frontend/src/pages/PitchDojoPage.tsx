@@ -1,11 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { FaceLandmarker, PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
+import type { FaceLandmarkerResult, PoseLandmarkerResult } from '@mediapipe/tasks-vision'
 import AppNav from '../components/AppNav'
 import { getUserManifest } from '../api/brainstorm'
 import type { ApiManifest } from '../api/brainstorm'
 
-
 const WS_BASE = 'ws://localhost:8000/pitch/ws'
+
+const VISION_WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+const FACE_MODEL =
+  'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
+const POSE_MODEL =
+  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task'
 
 interface InvestorForm {
   firstName: string
@@ -14,6 +21,83 @@ interface InvestorForm {
   linkedin: string
   notes: string
 }
+
+export interface InsightSnapshot {
+  timestamp: number           // seconds from pitch start
+  eye_contact_score: number   // 0-1, gaze direction toward camera
+  expression_score: number    // 0-1, facial landmark activity
+  posture_score: number       // 0-1, shoulder alignment and symmetry
+  head_movement_score: number // 0-1, head pose stability
+}
+
+interface FrameMetrics {
+  eyeContact: number
+  expression: number
+  posture: number
+  headPos: { x: number; y: number }
+}
+
+// ── Pure metric helpers ───────────────────────────────────────────────────────
+
+const EYE_GAZE_NAMES = [
+  'eyeLookInLeft', 'eyeLookOutLeft', 'eyeLookInRight', 'eyeLookOutRight',
+  'eyeLookUpLeft', 'eyeLookUpRight', 'eyeLookDownLeft', 'eyeLookDownRight',
+]
+
+const EXPRESSION_NAMES = [
+  'browDownLeft', 'browDownRight', 'browInnerUp', 'browOuterUpLeft', 'browOuterUpRight',
+  'cheekPuff', 'cheekSquintLeft', 'cheekSquintRight',
+  'jawOpen', 'mouthSmileLeft', 'mouthSmileRight',
+  'mouthFrownLeft', 'mouthFrownRight', 'mouthPucker', 'mouthFunnel',
+]
+
+function computeEyeContact(result: FaceLandmarkerResult): number {
+  const cats = result.faceBlendshapes?.[0]?.categories
+  if (!cats) return 0.5
+  const deflection =
+    EYE_GAZE_NAMES.reduce((sum, name) => {
+      return sum + (cats.find(c => c.categoryName === name)?.score ?? 0)
+    }, 0) / EYE_GAZE_NAMES.length
+  return Math.max(0, Math.min(1, 1 - deflection * 4))
+}
+
+function computeExpression(result: FaceLandmarkerResult): number {
+  const cats = result.faceBlendshapes?.[0]?.categories
+  if (!cats) return 0
+  const activity =
+    EXPRESSION_NAMES.reduce((sum, name) => {
+      return sum + (cats.find(c => c.categoryName === name)?.score ?? 0)
+    }, 0) / EXPRESSION_NAMES.length
+  return Math.min(1, activity * 6)
+}
+
+function computePosture(result: PoseLandmarkerResult): number {
+  const lm = result.landmarks?.[0]
+  if (!lm) return 0.5
+  const ls = lm[11] // left shoulder
+  const rs = lm[12] // right shoulder
+  if (!ls || !rs) return 0.5
+  const symmetry = Math.max(0, 1 - Math.abs(ls.y - rs.y) * 8)
+  const vis = ((ls.visibility ?? 0) + (rs.visibility ?? 0)) / 2
+  return Math.min(1, symmetry * 0.6 + Math.min(1, vis) * 0.4)
+}
+
+function getNoseTip(result: FaceLandmarkerResult): { x: number; y: number } | null {
+  const lm = result.faceLandmarks?.[0]
+  if (!lm || lm.length < 2) return null
+  return { x: lm[1].x, y: lm[1].y }
+}
+
+function computeHeadStability(positions: { x: number; y: number }[]): number {
+  if (positions.length < 2) return 1
+  const mx = positions.reduce((s, p) => s + p.x, 0) / positions.length
+  const my = positions.reduce((s, p) => s + p.y, 0) / positions.length
+  const variance =
+    positions.reduce((s, p) => s + (p.x - mx) ** 2 + (p.y - my) ** 2, 0) / positions.length
+  return Math.max(0, Math.min(1, 1 - Math.sqrt(variance) * 15))
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PitchDojoPage() {
   const navigate = useNavigate()
@@ -27,6 +111,7 @@ export default function PitchDojoPage() {
   })
   const [pitchActive, setPitchActive] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
+  const [, setSnapshots] = useState<InsightSnapshot[]>([])
 
   useEffect(() => {
     getUserManifest()
@@ -39,9 +124,98 @@ export default function PitchDojoPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const audioWsRef = useRef<WebSocket | null>(null)
-  const videoWsRef = useRef<WebSocket | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
-  const frameIntervalRef = useRef<number | null>(null)
+
+  // MediaPipe refs
+  const faceLandmarkerRef = useRef<FaceLandmarker | null>(null)
+  const poseLandmarkerRef = useRef<PoseLandmarker | null>(null)
+  const rafRef = useRef<number | null>(null)
+  const pitchStartRef = useRef<number>(0)
+  const lastSnapshotRef = useRef<number>(0)
+  const frameBuffer = useRef<FrameMetrics[]>([])
+  const snapshotsRef = useRef<InsightSnapshot[]>([])
+
+  // Close landmarkers when the component unmounts
+  useEffect(() => {
+    return () => {
+      faceLandmarkerRef.current?.close()
+      poseLandmarkerRef.current?.close()
+    }
+  }, [])
+
+  async function initMediaPipe() {
+    // Reuse across pitch sessions — only load once
+    if (faceLandmarkerRef.current && poseLandmarkerRef.current) return
+    const vision = await FilesetResolver.forVisionTasks(VISION_WASM)
+    const [face, pose] = await Promise.all([
+      FaceLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: FACE_MODEL, delegate: 'GPU' },
+        outputFaceBlendshapes: true,
+        runningMode: 'VIDEO',
+        numFaces: 1,
+      }),
+      PoseLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: POSE_MODEL, delegate: 'GPU' },
+        runningMode: 'VIDEO',
+        numPoses: 1,
+      }),
+    ])
+    faceLandmarkerRef.current = face
+    poseLandmarkerRef.current = pose
+  }
+
+  // RAF loop — runs silently alongside the live video feed
+  function runDetection() {
+    const videoEl = videoRef.current
+    if (!videoEl || videoEl.readyState < 2) {
+      rafRef.current = requestAnimationFrame(runDetection)
+      return
+    }
+
+    const now = performance.now()
+    const faceResult = faceLandmarkerRef.current?.detectForVideo(videoEl, now)
+    const poseResult = poseLandmarkerRef.current?.detectForVideo(videoEl, now)
+
+    const hasFace = !!faceResult && faceResult.faceLandmarks.length > 0
+    const hasPose = !!poseResult && poseResult.landmarks.length > 0
+
+    if (hasFace || hasPose) {
+      const noseTip = hasFace ? getNoseTip(faceResult!) : null
+      frameBuffer.current.push({
+        eyeContact: hasFace ? computeEyeContact(faceResult!) : 0.5,
+        expression: hasFace ? computeExpression(faceResult!) : 0,
+        posture: hasPose ? computePosture(poseResult!) : 0.5,
+        headPos: noseTip ?? { x: 0.5, y: 0.5 },
+      })
+    }
+
+    // Every 5 seconds flush the buffer into a snapshot
+    const elapsedSec = (now - pitchStartRef.current) / 1000
+    if (elapsedSec - lastSnapshotRef.current >= 5 && frameBuffer.current.length > 0) {
+      const frames = frameBuffer.current
+      const avg = (key: keyof Omit<FrameMetrics, 'headPos'>) =>
+        frames.reduce((s, f) => s + f[key], 0) / frames.length
+
+      const snapshot: InsightSnapshot = {
+        timestamp: Math.round(elapsedSec),
+        eye_contact_score: +avg('eyeContact').toFixed(3),
+        expression_score: +avg('expression').toFixed(3),
+        posture_score: +avg('posture').toFixed(3),
+        head_movement_score: +computeHeadStability(frames.map(f => f.headPos)).toFixed(3),
+      }
+
+      snapshotsRef.current = [...snapshotsRef.current, snapshot]
+      setSnapshots(snapshotsRef.current)
+      frameBuffer.current = []
+      lastSnapshotRef.current = elapsedSec
+    }
+
+    rafRef.current = requestAnimationFrame(runDetection)
+  }
+
+  function getMediaPipeResults(): InsightSnapshot[] {
+    return snapshotsRef.current
+  }
 
   // Start / stop media + WebSockets when pitch state toggles
   useEffect(() => {
@@ -49,7 +223,11 @@ export default function PitchDojoPage() {
 
     async function start() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+        // Load models and camera in parallel
+        const [stream] = await Promise.all([
+          navigator.mediaDevices.getUserMedia({ audio: true, video: true }),
+          initMediaPipe(),
+        ])
         streamRef.current = stream
 
         if (videoRef.current) {
@@ -73,28 +251,15 @@ export default function PitchDojoPage() {
             audioWs.send(e.data)
           }
         }
-        recorder.start(1500) // 1.5s chunks — keeps header+chunk under Hume's 5s limit
+        recorder.start(1500) // 1.5 s chunks — keeps header+chunk under Hume's 5 s limit
 
-        // — Video WebSocket —
-        const videoWs = new WebSocket(`${WS_BASE}/${sessionId.current}/video`)
-        videoWsRef.current = videoWs
-
-        // Capture 1 JPEG frame per second from the video element
-        const videoEl = videoRef.current!
-        frameIntervalRef.current = window.setInterval(() => {
-          if (!videoEl || videoEl.videoWidth === 0) return
-          if (videoWs.readyState !== WebSocket.OPEN) return
-
-          const canvas = document.createElement('canvas')
-          canvas.width = videoEl.videoWidth
-          canvas.height = videoEl.videoHeight
-          canvas.getContext('2d')?.drawImage(videoEl, 0, 0)
-          canvas.toBlob(
-            (blob) => { if (blob) blob.arrayBuffer().then(buf => videoWs.send(buf)) },
-            'image/jpeg',
-            0.7
-          )
-        }, 1000)
+        // — MediaPipe RAF loop —
+        pitchStartRef.current = performance.now()
+        lastSnapshotRef.current = 0
+        frameBuffer.current = []
+        snapshotsRef.current = []
+        setSnapshots([])
+        rafRef.current = requestAnimationFrame(runDetection)
 
       } catch (err) {
         console.error('Failed to start pitch:', err)
@@ -107,12 +272,17 @@ export default function PitchDojoPage() {
 
     return () => {
       recorderRef.current?.stop()
-      if (frameIntervalRef.current) clearInterval(frameIntervalRef.current)
       audioWsRef.current?.close()
-      videoWsRef.current?.close()
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       streamRef.current?.getTracks().forEach(t => t.stop())
     }
   }, [pitchActive])
+
+  function endPitch() {
+    const results = getMediaPipeResults()
+    console.log('[MediaPipe] Final snapshots:', results)
+    setPitchActive(false)
+  }
 
   const canStart =
     form.firstName.trim().length > 0 &&
@@ -129,7 +299,7 @@ export default function PitchDojoPage() {
       <div className="call-root">
         <div className="call-header">
           <div className="call-header-left">
-            <button className="call-back-btn" onClick={() => setPitchActive(false)}>←</button>
+            <button className="call-back-btn" onClick={endPitch}>←</button>
             <div className="call-manifest-title">{manifest?.one_liner}</div>
           </div>
           <div className="call-timer">0:00</div>
@@ -163,7 +333,7 @@ export default function PitchDojoPage() {
         <div className="call-controls">
           <button className="ctrl-btn">Mute</button>
           <button className="ctrl-btn">Camera</button>
-          <button className="ctrl-btn ctrl-end" onClick={() => setPitchActive(false)}>End Pitch</button>
+          <button className="ctrl-btn ctrl-end" onClick={endPitch}>End Pitch</button>
         </div>
       </div>
     )
@@ -186,11 +356,11 @@ export default function PitchDojoPage() {
         </aside>
 
         <div className="pitch-content">
-        {mediaError && (
-          <div className="pitch-error">{mediaError}</div>
-        )}
+          {mediaError && (
+            <div className="pitch-error">{mediaError}</div>
+          )}
 
-        <div className="pitch-manifest-card">
+          <div className="pitch-manifest-card">
             <div className="pmc-label">Your Startup</div>
             <div className="pmc-oneliner">{manifest?.one_liner}</div>
             <div className="pmc-row">
