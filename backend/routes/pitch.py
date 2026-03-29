@@ -9,15 +9,17 @@ from sqlalchemy import select
 from hume import AsyncHumeClient
 from hume.expression_measurement.stream.stream.types.config import Config
 from hume.expression_measurement.stream.stream.types.stream_model_predictions import StreamModelPredictions
+from deepgram import DeepgramClient, PrerecordedOptions
 
 from db.database import get_db, AsyncSessionLocal
-from db.models import PitchSession, PitchVideoSnapshot, PitchAudioSegment, StartupManifest, User
+from db.models import PitchSession, PitchVideoSnapshot, PitchAudioSegment, PitchTranscript, StartupManifest, User
 from core.security import get_current_user
 from core.utils import parse_uuid
 
 router = APIRouter()
 
 HUME_API_KEY = os.getenv("HUME_API_KEY")
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 
 
 class CreatePitchSessionRequest(BaseModel):
@@ -94,6 +96,43 @@ async def receive_video_analysis(
     return {"session_id": session_id, "saved": len(snapshots)}
 
 
+async def _transcribe_audio(audio_bytes: bytes) -> list[tuple[float, float, str, float | None]]:
+    """Send the full WebM audio to Deepgram prerecorded API.
+
+    Returns a list of (start_time, end_time, text, confidence) tuples,
+    one per utterance.  Returns an empty list on any error.
+    """
+    if not DEEPGRAM_API_KEY or not audio_bytes:
+        return []
+    try:
+        client = DeepgramClient(DEEPGRAM_API_KEY)
+        options = PrerecordedOptions(
+            model="nova-3",
+            utterances=True,
+            punctuate=True,
+            smart_format=True,
+        )
+        response = await client.listen.asyncrest.v("1").transcribe_file(
+            {"buffer": audio_bytes, "mimetype": "audio/webm"},
+            options,
+        )
+        utterances = (response.results.utterances or []) if response.results else []
+        segments: list[tuple[float, float, str, float | None]] = []
+        for u in utterances:
+            text = (u.transcript or "").strip()
+            if text:
+                segments.append((
+                    float(u.start),
+                    float(u.end),
+                    text,
+                    float(u.confidence) if u.confidence is not None else None,
+                ))
+        return segments
+    except Exception as e:
+        print(f"[deepgram] transcription error: {e}")
+        return []
+
+
 @router.websocket("/ws/{session_id}/audio")
 async def audio_stream(websocket: WebSocket, session_id: str):
     await websocket.accept()
@@ -114,6 +153,11 @@ async def audio_stream(websocket: WebSocket, session_id: str):
     # closes because WebSocket routes can't use Depends(get_db) for the full lifetime
     audio_segments: list[tuple[float, float, list]] = []
 
+    # Raw WebM data for Deepgram transcription (header stored separately,
+    # each subsequent chunk appended to raw_chunks)
+    webm_header_bytes: bytes = b""
+    raw_chunks: list[bytes] = []
+
     async with client.expression_measurement.stream.connect() as hume_socket:
         webm_header: bytes = b""
 
@@ -124,7 +168,10 @@ async def audio_stream(websocket: WebSocket, session_id: str):
                 if not webm_header:
                     # First chunk is the WebM container header and carries no audio frames.
                     webm_header = data
+                    webm_header_bytes = data
                     continue
+
+                raw_chunks.append(data)
 
                 payload = webm_header + data
                 start_time = audio_chunk_idx * CHUNK_DURATION
@@ -163,13 +210,16 @@ async def audio_stream(websocket: WebSocket, session_id: str):
         except WebSocketDisconnect:
             print(f"[pitch:{session_id}] audio WebSocket disconnected")
 
-    # Open a fresh DB session after the WebSocket closes to persist the accumulated segments.
-    if audio_segments:
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(
-                select(PitchSession).where(PitchSession.id == parse_uuid(session_id))
-            )
-            if result.scalar_one_or_none():
+    # Open a fresh DB session after the WebSocket closes to persist accumulated data.
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(PitchSession).where(PitchSession.id == parse_uuid(session_id))
+        )
+        if not result.scalar_one_or_none():
+            print(f"[pitch:{session_id}] session not found, skipping save")
+        else:
+            # Save Hume emotion segments
+            if audio_segments:
                 for start_time, end_time, emotions in audio_segments:
                     db.add(
                         PitchAudioSegment(
@@ -179,7 +229,22 @@ async def audio_stream(websocket: WebSocket, session_id: str):
                             emotions=emotions,
                         )
                     )
-                await db.commit()
                 print(f"[pitch:{session_id}] saved {len(audio_segments)} audio segments")
-            else:
-                print(f"[pitch:{session_id}] session not found, skipping audio segment save")
+
+            # Transcribe the full WebM with Deepgram and save transcript rows
+            if webm_header_bytes and raw_chunks:
+                full_webm = webm_header_bytes + b"".join(raw_chunks)
+                transcript_segments = await _transcribe_audio(full_webm)
+                for start_time, end_time, text, confidence in transcript_segments:
+                    db.add(
+                        PitchTranscript(
+                            pitch_session_id=uuid.UUID(session_id),
+                            start_time=start_time,
+                            end_time=end_time,
+                            text=text,
+                            confidence=confidence,
+                        )
+                    )
+                print(f"[pitch:{session_id}] saved {len(transcript_segments)} transcript segments")
+
+            await db.commit()

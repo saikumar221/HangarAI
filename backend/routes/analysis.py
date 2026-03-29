@@ -11,6 +11,7 @@ from db.database import get_db
 from db.models import (
     PitchAudioSegment,
     PitchSession,
+    PitchTranscript,
     PitchVideoSnapshot,
     StartupManifest,
     User,
@@ -28,10 +29,10 @@ async def generate_pitch_analysis(
 ):
     """Run the multi-agent pitch analysis orchestrator for a session.
 
-    Fetches audio segments and video snapshots from the DB, fires the
-    Audio Agent and Video Agent in parallel, then synthesises a full
-    report containing an improvement roadmap, a confidence graph, and
-    the investor-persona verdict.
+    Fetches audio segments, video snapshots, and transcript from the DB,
+    fires the Audio Agent, Video Agent, and Transcript Agent in parallel,
+    then synthesises a full report containing an improvement roadmap, a
+    confidence graph, and the investor-persona verdict.
     """
     session_uuid = parse_uuid(session_id)
 
@@ -75,6 +76,21 @@ async def generate_pitch_analysis(
         for snap in video_result.scalars().all()
     ]
 
+    transcript_result = await db.execute(
+        select(PitchTranscript)
+        .where(PitchTranscript.pitch_session_id == session.id)
+        .order_by(PitchTranscript.start_time)
+    )
+    transcripts = [
+        {
+            "start_time": t.start_time,
+            "end_time": t.end_time,
+            "text": t.text,
+            "confidence": t.confidence,
+        }
+        for t in transcript_result.scalars().all()
+    ]
+
     manifest: dict = {}
     if session.manifest_id:
         manifest_result = await db.execute(
@@ -103,6 +119,7 @@ async def generate_pitch_analysis(
             manifest=manifest,
             audio_segments=audio_segments,
             video_snapshots=video_snapshots,
+            transcripts=transcripts,
         )
     except Exception as exc:
         logger.exception("Pitch analysis failed for session %s", session_id)
@@ -114,6 +131,7 @@ async def generate_pitch_analysis(
         "investor_company": session.investor_company,
         "audio_insights": analysis["audio_insights"],
         "video_insights": analysis["video_insights"],
+        "transcript_insights": analysis["transcript_insights"],
         "improvement_roadmap": analysis["improvement_roadmap"],
         "confidence_graph": analysis["confidence_graph"],
         "verdict": analysis["verdict"],

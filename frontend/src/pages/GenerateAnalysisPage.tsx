@@ -208,13 +208,15 @@ function LoadingView() {
   const phases = [
     { label: 'Audio Agent', sub: 'Analyzing vocal emotion timeline with Gemini' },
     { label: 'Video Agent', sub: 'Analyzing visual presence metrics with Gemini' },
-    { label: 'Synthesis Engine', sub: 'Fusing signals into comprehensive report' },
+    { label: 'Transcript Agent', sub: 'Analyzing pitch content and structure with Gemini' },
+    { label: 'Synthesis Engine', sub: 'Fusing all signals into comprehensive report' },
   ]
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase(1), 4000)
-    const t2 = setTimeout(() => setPhase(2), 9000)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
+    const t1 = setTimeout(() => setPhase(1), 3000)
+    const t2 = setTimeout(() => setPhase(2), 6000)
+    const t3 = setTimeout(() => setPhase(3), 9000)
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
   }, [])
 
   return (
@@ -231,12 +233,12 @@ function LoadingView() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
         {phases.map((p, i) => {
           const state = i < phase ? 'done' : i === phase ? 'running' : 'waiting'
           return (
             <div key={p.label} style={{
-              width: 196,
+              width: 176,
               padding: '18px 20px',
               background: state === 'done' ? C.greenBg : state === 'running' ? '#eff6ff' : C.surface,
               border: `0.5px solid ${state === 'done' ? '#bbf7d0' : state === 'running' ? '#bfdbfe' : C.border}`,
@@ -273,7 +275,7 @@ export default function GenerateAnalysisPage() {
   const [report, setReport] = useState<AnalysisReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'roadmap' | 'audio' | 'video'>('roadmap')
+  const [activeTab, setActiveTab] = useState<'roadmap' | 'audio' | 'video' | 'transcript'>('roadmap')
   const hasFetched = useRef(false)
 
   useEffect(() => {
@@ -407,9 +409,9 @@ export default function GenerateAnalysisPage() {
             <ConfidenceGraph data={report.confidence_graph} />
           </section>
 
-          {/* ── Tabs: Roadmap / Audio / Video ─────────────────────────── */}
+          {/* ── Tabs: Roadmap / Audio / Video / Transcript ────────────── */}
           <div style={{ display: 'flex', gap: 0, marginBottom: 0, borderBottom: `0.5px solid ${C.border}` }}>
-            {(['roadmap', 'audio', 'video'] as const).map(tab => (
+            {(['roadmap', 'audio', 'video', 'transcript'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} style={{
                 background: 'transparent', border: 'none',
                 borderBottom: activeTab === tab ? `1.5px solid ${C.blue}` : '1.5px solid transparent',
@@ -421,7 +423,10 @@ export default function GenerateAnalysisPage() {
                 transition: 'color 0.15s ease',
                 marginBottom: -0.5,
               }}>
-                {tab === 'roadmap' ? 'Improvement Roadmap' : tab === 'audio' ? 'Vocal Analysis' : 'Visual Analysis'}
+                {tab === 'roadmap' ? 'Improvement Roadmap'
+                  : tab === 'audio' ? 'Vocal Analysis'
+                  : tab === 'video' ? 'Visual Analysis'
+                  : 'Transcript Analysis'}
               </button>
             ))}
           </div>
@@ -586,6 +591,126 @@ export default function GenerateAnalysisPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* ── Transcript Tab ────────────────────────────────────────── */}
+          {activeTab === 'transcript' && (
+            <div style={{ paddingTop: 24 }}>
+              {!report.transcript_insights ? (
+                <div style={{ fontSize: 13, color: C.text4, padding: '32px 0', textAlign: 'center' }}>
+                  No transcript was captured for this session.
+                </div>
+              ) : (
+                <>
+                  {/* Score row */}
+                  <div style={{ display: 'flex', gap: 16, marginBottom: 28, flexWrap: 'wrap' }}>
+                    {[
+                      { label: 'Content Quality', value: report.transcript_insights.content_score },
+                      { label: 'Clarity', value: report.transcript_insights.clarity_score },
+                      { label: 'Structure', value: report.transcript_insights.structure_score },
+                      { label: 'Word Count', value: report.transcript_insights.word_count, suffix: 'words' },
+                    ].map(m => (
+                      <div key={m.label} style={{
+                        flex: '1 1 140px', background: C.surface,
+                        border: `0.5px solid ${C.border}`, borderRadius: 8, padding: '16px 20px',
+                      }}>
+                        <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.text4, marginBottom: 6 }}>
+                          {m.label}
+                        </div>
+                        <div style={{ fontSize: 26, fontWeight: 300, color: C.text1 }}>{m.value}</div>
+                        <div style={{ fontSize: 11, color: C.text4 }}>
+                          {'suffix' in m ? m.suffix : '/ 100'}
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{
+                      flex: '1 1 140px', background: C.surface,
+                      border: `0.5px solid ${C.border}`, borderRadius: 8, padding: '16px 20px',
+                    }}>
+                      <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.text4, marginBottom: 6 }}>
+                        Duration Quality
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 300, color: C.text1, marginTop: 4 }}>
+                        {report.transcript_insights.duration_quality}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.text4 }}>
+                        {report.transcript_insights.filler_word_count} filler words
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  <div style={{
+                    background: C.surface, border: `0.5px solid ${C.border}`,
+                    borderRadius: 8, padding: '18px 22px', marginBottom: 24, fontSize: 13, color: C.text2, lineHeight: 1.7,
+                  }}>
+                    {report.transcript_insights.transcript_summary}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+                    {/* Key talking points */}
+                    <div>
+                      <div style={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.text4, marginBottom: 10 }}>
+                        Key Talking Points
+                      </div>
+                      {report.transcript_insights.key_talking_points.map((p, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, fontSize: 13, color: C.text2 }}>
+                          <span style={{ color: C.blue, flexShrink: 0 }}>·</span>
+                          {p}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Missing elements */}
+                    <div>
+                      <div style={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#dc2626', marginBottom: 10 }}>
+                        Missing Elements
+                      </div>
+                      {report.transcript_insights.missing_elements.length === 0 ? (
+                        <div style={{ fontSize: 13, color: C.text4 }}>None identified</div>
+                      ) : report.transcript_insights.missing_elements.map((e, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, fontSize: 13, color: C.text2 }}>
+                          <span style={{ color: '#dc2626', flexShrink: 0 }}>✗</span>
+                          {e}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Standout phrases */}
+                  {report.transcript_insights.standout_phrases.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                      <div style={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.text4, marginBottom: 10 }}>
+                        Standout Phrases
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {report.transcript_insights.standout_phrases.map((phrase, i) => (
+                          <span key={i} style={{
+                            fontSize: 12, padding: '4px 12px', borderRadius: 100,
+                            background: '#eff6ff', border: `0.5px solid #bfdbfe`, color: C.blue,
+                          }}>
+                            "{phrase}"
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Content patterns */}
+                  <div>
+                    <div style={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.text4, marginBottom: 10 }}>
+                      Content Patterns
+                    </div>
+                    {report.transcript_insights.content_patterns.map((p, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, fontSize: 13, color: C.text2 }}>
+                        <span style={{ color: C.blue, flexShrink: 0 }}>·</span>
+                        {p}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

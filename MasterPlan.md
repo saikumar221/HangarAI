@@ -60,6 +60,58 @@ Hangar's one-liner: The only tool that takes a founder from raw messy idea → s
 
 **Manifest portability (roadmap):** A `GET /manifests/{id}` public endpoint could expose the manifest JSON for third-party deck tools or CRMs — not yet implemented.
 
+
+## Startup Manifest Schema
+
+The Startup Manifest is the core portable artifact extracted by the Consultant Agent at the end of a brainstorm session. It is persisted to PostgreSQL and exposed via REST.
+
+```json
+{
+ "id": "uuid",
+ "brainstorm_session_id": "uuid",
+ "one_liner": "string",
+ "problem": "string",
+ "solution": "string",
+ "target_customer": "string",
+ "market_size": "string",
+ "competitors": ["string"],
+ "differentiators": ["string"],
+ "key_assumptions": ["string"],
+ "created_at": "ISO 8601 timestamp"
+}
+```
+
+All fields except `id`, `brainstorm_session_id`, and `created_at` are nullable — the agent populates what it can extract from the conversation; unresolved fields are left null rather than hallucinated.
+
+### API Endpoints
+
+All endpoints require `Authorization: Bearer <jwt>` except where noted.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/auth/signup` | Create a user account |
+| `POST` | `/auth/login` | Authenticate and receive a JWT |
+| `GET` | `/auth/me` | Get the authenticated user's profile |
+| `POST` | `/brainstorm/session` | Start a new brainstorm session |
+| `GET` | `/brainstorm/sessions` | List all sessions for the user |
+| `POST` | `/brainstorm/session/{id}/chat` | Send a message; returns the agent's reply |
+| `GET` | `/brainstorm/session/{id}/messages` | Fetch full conversation history |
+| `POST` | `/brainstorm/session/{id}/finalize` | Extract and persist the Startup Manifest |
+| `GET` | `/brainstorm/manifest` | Get the user's current Startup Manifest |
+| `GET` | `/brainstorm/session/{id}/manifest` | Get the manifest from a specific session |
+| `DELETE` | `/brainstorm/session/{id}` | Delete a session and its messages + manifest |
+| `DELETE` | `/brainstorm/manifest` | Delete the user's manifest |
+| `POST` | `/pitch/sessions` | Create a new pitch session |
+| `WS` | `/pitch/ws/{id}/audio` | Stream audio chunks (2 s) for Hume prosody analysis |
+| `POST` | `/pitch/sessions/{id}/video-analysis` | Submit MediaPipe presence snapshots after pitch ends |
+| `POST` | `/analysis/pitch/{session_id}` | Run multi-agent analysis; returns full report |
+
+
+### Extending the Agent Pipeline
+
+New analysis agents can be added to the LangGraph orchestrator without touching existing nodes. Each agent node receives the shared pitch state (audio segments, video snapshots, manifest) and writes its output back to the state under its own key. The synthesis node reads all agent outputs — adding a new agent means adding one key to the synthesis prompt, not rewiring the graph.
+
+
 ## Risks & Contingencies
 
 | Risk | Descope Trigger | Fallback |

@@ -6,6 +6,8 @@ import AppNav from '../components/AppNav'
 import { getUserManifest } from '../api/brainstorm'
 import type { ApiManifest } from '../api/brainstorm'
 import { createPitchSession } from '../api/pitch'
+import { VC_PERSONAS } from '../data/vcPersonas'
+import type { VCPersona } from '../data/vcPersonas'
 
 const WS_BASE = 'ws://localhost:8000/pitch/ws'
 
@@ -103,6 +105,7 @@ function computeHeadStability(positions: { x: number; y: number }[]): number {
 export default function PitchDojoPage() {
   const navigate = useNavigate()
   const [manifest, setManifest] = useState<ApiManifest | null>(null)
+  const [selectedPersona, setSelectedPersona] = useState<VCPersona | 'custom' | null>(null)
   const [form, setForm] = useState<InvestorForm>({
     firstName: '',
     lastName: '',
@@ -319,13 +322,28 @@ export default function PitchDojoPage() {
     navigate(`/generate-analysis/${sessionId.current}`)
   }
 
-  const canStart =
-    form.firstName.trim().length > 0 &&
-    form.lastName.trim().length > 0 &&
-    form.company.trim().length > 0
+  const canStart = selectedPersona === 'custom'
+    ? form.firstName.trim().length > 0 && form.lastName.trim().length > 0 && form.company.trim().length > 0
+    : selectedPersona !== null
 
   function update(field: keyof InvestorForm, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  function selectPersona(persona: VCPersona) {
+    setSelectedPersona(persona)
+    setForm({
+      firstName: persona.firstName,
+      lastName: persona.lastName,
+      company: persona.company,
+      linkedin: '',
+      notes: persona.notes,
+    })
+  }
+
+  function selectCustom() {
+    setSelectedPersona('custom')
+    setForm({ firstName: '', lastName: '', company: '', linkedin: '', notes: '' })
   }
 
   // ── Active pitch: video call layout ──────────────────────────────────────
@@ -415,73 +433,120 @@ export default function PitchDojoPage() {
 
           <div className="pitch-form-section">
             <div className="pfs-label">Who are you pitching to?</div>
-            <div className="pitch-form">
-              <div className="pf-row">
+
+            <div className="persona-grid">
+              {VC_PERSONAS.map(p => {
+                const isSelected = selectedPersona !== 'custom' && selectedPersona !== null && (selectedPersona as VCPersona).id === p.id
+                return (
+                  <button
+                    key={p.id}
+                    className={`persona-card${isSelected ? ' persona-card--selected' : ''}`}
+                    onClick={() => selectPersona(p)}
+                  >
+                    {isSelected && <div className="persona-check">✓</div>}
+                    <div className="persona-avatar">{p.firstName.charAt(0)}{p.lastName.charAt(0)}</div>
+                    <div className="persona-info">
+                      <div className="persona-archetype">{p.archetype}</div>
+                      <div className="persona-name">{p.firstName} {p.lastName}</div>
+                      <div className="persona-firm">{p.title}, {p.company}</div>
+                      <div className="persona-focus">{p.focus}</div>
+                      <div className="persona-desc">{p.description}</div>
+                    </div>
+                  </button>
+                )
+              })}
+
+              <button
+                className={`persona-card persona-card--custom${selectedPersona === 'custom' ? ' persona-card--selected' : ''}`}
+                onClick={selectCustom}
+              >
+                {selectedPersona === 'custom' && <div className="persona-check">✓</div>}
+                <div className="persona-avatar persona-avatar--custom">+</div>
+                <div className="persona-info">
+                  <div className="persona-archetype">Custom</div>
+                  <div className="persona-name">Your Investor</div>
+                  <div className="persona-desc">Enter a specific investor's details and coaching notes manually.</div>
+                </div>
+              </button>
+            </div>
+
+            {selectedPersona === 'custom' && (
+              <div className="pitch-form">
+                <div className="pf-row">
+                  <div className="pf-field">
+                    <label className="pf-label">First name <span className="pf-req">*</span></label>
+                    <input
+                      className="pf-input"
+                      type="text"
+                      placeholder="Paul"
+                      value={form.firstName}
+                      onChange={e => update('firstName', e.target.value)}
+                    />
+                  </div>
+                  <div className="pf-field">
+                    <label className="pf-label">Last name <span className="pf-req">*</span></label>
+                    <input
+                      className="pf-input"
+                      type="text"
+                      placeholder="Graham"
+                      value={form.lastName}
+                      onChange={e => update('lastName', e.target.value)}
+                    />
+                  </div>
+                </div>
+
                 <div className="pf-field">
-                  <label className="pf-label">First name <span className="pf-req">*</span></label>
+                  <label className="pf-label">Company <span className="pf-req">*</span></label>
                   <input
                     className="pf-input"
                     type="text"
-                    placeholder="Paul"
-                    value={form.firstName}
-                    onChange={e => update('firstName', e.target.value)}
+                    placeholder="Y Combinator"
+                    value={form.company}
+                    onChange={e => update('company', e.target.value)}
                   />
                 </div>
+
                 <div className="pf-field">
-                  <label className="pf-label">Last name <span className="pf-req">*</span></label>
+                  <label className="pf-label">LinkedIn</label>
                   <input
                     className="pf-input"
-                    type="text"
-                    placeholder="Graham"
-                    value={form.lastName}
-                    onChange={e => update('lastName', e.target.value)}
+                    type="url"
+                    placeholder="https://linkedin.com/in/..."
+                    value={form.linkedin}
+                    onChange={e => update('linkedin', e.target.value)}
+                  />
+                </div>
+
+                <div className="pf-field">
+                  <label className="pf-label">Coaching notes</label>
+                  <textarea
+                    className="pf-input pf-textarea"
+                    placeholder="e.g. Focus on market size, skeptical of B2C, ex-operator..."
+                    value={form.notes}
+                    onChange={e => update('notes', e.target.value)}
+                    rows={3}
                   />
                 </div>
               </div>
+            )}
 
-              <div className="pf-field">
-                <label className="pf-label">Company <span className="pf-req">*</span></label>
-                <input
-                  className="pf-input"
-                  type="text"
-                  placeholder="Y Combinator"
-                  value={form.company}
-                  onChange={e => update('company', e.target.value)}
-                />
+            {selectedPersona !== null && selectedPersona !== 'custom' && (
+              <div className="persona-selected-summary">
+                <span className="pss-name">{form.firstName} {form.lastName} · {form.company}</span>
+                <span className="pss-sep"> — </span>
+                <span className="pss-notes">{(selectedPersona as VCPersona).description}</span>
               </div>
+            )}
 
-              <div className="pf-field">
-                <label className="pf-label">LinkedIn</label>
-                <input
-                  className="pf-input"
-                  type="url"
-                  placeholder="https://linkedin.com/in/..."
-                  value={form.linkedin}
-                  onChange={e => update('linkedin', e.target.value)}
-                />
-              </div>
-
-              <div className="pf-field">
-                <label className="pf-label">Additional notes</label>
-                <textarea
-                  className="pf-input pf-textarea"
-                  placeholder="e.g. Focus on market size, skeptical of B2C..."
-                  value={form.notes}
-                  onChange={e => update('notes', e.target.value)}
-                  rows={3}
-                />
-              </div>
-
-              <div className="pf-footer">
-                <span className="pf-hint">* required</span>
-                <button
-                  className="start-btn"
-                  disabled={!canStart}
-                  onClick={() => setPitchActive(true)}
-                >
-                  Start Pitch →
-                </button>
-              </div>
+            <div className="pf-footer">
+              <span className="pf-hint">{selectedPersona === null ? 'Select a persona above to continue' : ''}</span>
+              <button
+                className="start-btn"
+                disabled={!canStart}
+                onClick={() => setPitchActive(true)}
+              >
+                Start Pitch →
+              </button>
             </div>
           </div>
         </div>

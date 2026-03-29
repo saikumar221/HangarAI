@@ -1407,7 +1407,7 @@ body {
 .pitch-form-section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .pfs-label {
@@ -1518,6 +1518,137 @@ body {
 .start-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* ── Persona Grid ─────────────────────────────────────────────────────────── */
+
+.persona-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.persona-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: #F3F2EF;
+  border: 0.5px solid #D0CFCC;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.persona-card:hover {
+  border-color: #9A9998;
+  background: #EEECEA;
+}
+
+.persona-card--selected {
+  border-color: #0b1370 !important;
+  background: #f0f1fb !important;
+  box-shadow: 0 0 0 2px rgba(11, 19, 112, 0.12);
+}
+
+.persona-card--custom .persona-avatar--custom {
+  background: #E2E1DE;
+  color: #6A6968;
+  font-size: 18px;
+}
+
+.persona-check {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #0b1370;
+  letter-spacing: 0.02em;
+}
+
+.persona-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #0b1370;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.persona-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+
+.persona-archetype {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0b1370;
+  margin-bottom: 2px;
+}
+
+.persona-name {
+  font-size: 13px;
+  font-weight: 400;
+  color: #0A0908;
+  line-height: 1.3;
+}
+
+.persona-firm {
+  font-size: 11px;
+  font-weight: 300;
+  color: #6A6968;
+}
+
+.persona-focus {
+  font-size: 10px;
+  font-weight: 300;
+  color: #9A9998;
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+
+.persona-desc {
+  font-size: 11px;
+  font-weight: 300;
+  color: #6A6968;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
+.persona-selected-summary {
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 300;
+  color: #6A6968;
+  line-height: 1.55;
+  padding: 10px 14px;
+  background: #f0f1fb;
+  border: 0.5px solid rgba(11, 19, 112, 0.18);
+  border-radius: 6px;
+}
+
+.pss-name {
+  font-weight: 400;
+  color: #0A0908;
+}
+
+.pss-sep {
+  color: #C0BFBD;
 }
 
 /* ==================== PITCH CALL (ACTIVE) ==================== */

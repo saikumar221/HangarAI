@@ -57,6 +57,19 @@ export interface AnalysisReport {
     visual_patterns: string[]
     visual_summary: string
   }
+  transcript_insights: {
+    content_score: number
+    clarity_score: number
+    structure_score: number
+    word_count: number
+    duration_quality: string
+    key_talking_points: string[]
+    missing_elements: string[]
+    filler_word_count: number
+    standout_phrases: string[]
+    content_patterns: string[]
+    transcript_summary: string
+  } | null
   improvement_roadmap: {
     section: string
     priority: 'Critical' | 'High' | 'Medium' | 'Low'

@@ -3,10 +3,10 @@
 Graph topology:
     START → run_parallel_agents → synthesize → END
 
-The `run_parallel_agents` node fires the Audio Agent and Video Agent
-concurrently via asyncio.gather — each receives raw DB data and returns
-structured Gemini-powered insights.  The `synthesize` node fuses both
-outputs into the final three-part report:
+The `run_parallel_agents` node fires the Audio Agent, Video Agent, and
+Transcript Agent concurrently via asyncio.gather — each receives raw DB
+data and returns structured Gemini-powered insights.  The `synthesize`
+node fuses all three outputs into the final three-part report:
 
   • improvement_roadmap  – prioritised, section-level suggestions
   • confidence_graph     – per-timestamp composite score merged from
@@ -41,10 +41,12 @@ class PitchAnalysisState(TypedDict):
     manifest: dict                  # startup manifest fields
     audio_segments: list[dict]      # [{start_time, end_time, emotions: [{name, score}]}]
     video_snapshots: list[dict]     # [{timestamp, eye_contact_score, ...}]
+    transcripts: list[dict]         # [{start_time, end_time, text, confidence}]
 
     # ── intermediate ────────────────────────────────────────────────────────
     audio_insights: Optional[dict]
     video_insights: Optional[dict]
+    transcript_insights: Optional[dict]
 
     # ── output ──────────────────────────────────────────────────────────────
     improvement_roadmap: Optional[list[dict]]
@@ -138,6 +140,18 @@ def _format_video_timeline(snapshots: list[dict]) -> str:
             f"head_stability={snap['head_movement_score']:.2f}"
         )
     return "\n".join(lines)
+
+
+def _format_transcript(transcripts: list[dict]) -> str:
+    """Format transcript utterances as a timestamped script plus full text."""
+    if not transcripts:
+        return "No transcript available."
+    sorted_segs = sorted(transcripts, key=lambda x: x["start_time"])
+    lines = []
+    for seg in sorted_segs:
+        lines.append(f"  [{seg['start_time']:.1f}s–{seg['end_time']:.1f}s] {seg['text']}")
+    full_text = " ".join(seg["text"] for seg in sorted_segs)
+    return "\n".join(lines) + f"\n\nFull transcript:\n{full_text}"
 
 
 # Emotions that lift confidence vs. those that dampen it
@@ -274,6 +288,39 @@ Analyze the visual presence and return a JSON object:
 Return ONLY valid JSON. No markdown fences.\
 """
 
+_TRANSCRIPT_AGENT_PROMPT = """\
+You are an expert pitch coach and content strategist analyzing the spoken content of a startup founder's pitch.
+
+You have a timestamped transcript captured via speech-to-text during the live pitch.
+
+## Startup Context
+{manifest}
+
+## Pitching To
+{investor_name} at {investor_company}
+
+## Timestamped Transcript
+{transcript}
+
+Analyze the pitch content deeply and return a JSON object:
+{{
+  "content_score": <integer 0-100, overall quality of what was said>,
+  "clarity_score": <integer 0-100, how clear and understandable the language was>,
+  "structure_score": <integer 0-100, how well-organized the pitch narrative was>,
+  "word_count": <integer, approximate total words spoken>,
+  "duration_quality": "<too short|adequate|optimal|too long>",
+  "key_talking_points": ["<main point 1>", "<main point 2>", "<main point 3>"],
+  "missing_elements": ["<important pitch element not addressed 1>", "<element 2>"],
+  "filler_word_count": <integer, estimated count of filler words like um, uh, like, you know>,
+  "standout_phrases": ["<memorable or effective phrase 1>", "<phrase 2>"],
+  "content_patterns": ["<content insight 1>", "<content insight 2>", "<content insight 3>"],
+  "transcript_summary": "<2–3 sentence honest assessment of pitch content quality>"
+}}
+
+If transcript is empty or very short, return scores of 0 and note the lack of content.
+Return ONLY valid JSON. No markdown fences.\
+"""
+
 _SYNTHESIS_PROMPT = """\
 You are an elite investment analyst delivering industrial-grade feedback on a startup pitch.
 
@@ -291,6 +338,9 @@ Notes: {investor_notes}
 ## Video Analysis (Visual Presence)
 {video_insights}
 
+## Transcript Analysis (Content Quality)
+{transcript_insights}
+
 Generate a comprehensive post-pitch analysis report as JSON:
 {{
   "improvement_roadmap": [
@@ -303,7 +353,7 @@ Generate a comprehensive post-pitch analysis report as JSON:
   ],
   "verdict": {{
     "pre_seed_readiness_score": <integer 0-100>,
-    "investor_persona_summary": "<brutal, honest, 2–3 paragraph assessment written in first person as {investor_name} at {investor_company} — reference specific observations from the audio and video data, reflect the personality implied by the investor notes>",
+    "investor_persona_summary": "<brutal, honest, 2–3 paragraph assessment written in first person as {investor_name} at {investor_company} — reference specific observations from the audio, video, and transcript data, reflect the personality implied by the investor notes>",
     "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
     "critical_weaknesses": ["<weakness 1>", "<weakness 2>"],
     "go_decision": "<Strong Pass|Pass|Considering|Interested|Strong Interest>"
@@ -340,11 +390,23 @@ async def _run_video_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisStat
     return _parse_json_response(response.content)
 
 
+async def _run_transcript_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisState) -> dict:
+    prompt = _TRANSCRIPT_AGENT_PROMPT.format(
+        manifest=_format_manifest(state["manifest"]),
+        investor_name=state["investor_name"],
+        investor_company=state["investor_company"],
+        transcript=_format_transcript(state["transcripts"]),
+    )
+    response = await llm.ainvoke([HumanMessage(content=prompt)])
+    return _parse_json_response(response.content)
+
+
 async def _run_synthesis(
     llm: ChatGoogleGenerativeAI,
     state: PitchAnalysisState,
     audio_insights: dict,
     video_insights: dict,
+    transcript_insights: dict,
 ) -> dict:
     prompt = _SYNTHESIS_PROMPT.format(
         manifest=_format_manifest(state["manifest"]),
@@ -353,6 +415,7 @@ async def _run_synthesis(
         investor_notes=state["investor_notes"] or "No additional notes.",
         audio_insights=json.dumps(audio_insights, indent=2),
         video_insights=json.dumps(video_insights, indent=2),
+        transcript_insights=json.dumps(transcript_insights, indent=2),
     )
     response = await llm.ainvoke([HumanMessage(content=prompt)])
     return _parse_json_response(response.content)
@@ -370,23 +433,26 @@ def _build_graph():
     )
 
     async def run_parallel_agents(state: PitchAnalysisState) -> dict:
-        """Fan-out: audio and video agents execute concurrently."""
-        audio_insights, video_insights = await asyncio.gather(
+        """Fan-out: audio, video, and transcript agents execute concurrently."""
+        audio_insights, video_insights, transcript_insights = await asyncio.gather(
             _run_audio_agent(llm, state),
             _run_video_agent(llm, state),
+            _run_transcript_agent(llm, state),
         )
         return {
             "audio_insights": audio_insights,
             "video_insights": video_insights,
+            "transcript_insights": transcript_insights,
         }
 
     async def synthesize(state: PitchAnalysisState) -> dict:
-        """Fuse both agent outputs + raw timeline into the final report."""
+        """Fuse all three agent outputs + raw timeline into the final report."""
         synthesis = await _run_synthesis(
             llm,
             state,
             state["audio_insights"] or {},
             state["video_insights"] or {},
+            state["transcript_insights"] or {},
         )
         confidence_graph = _build_confidence_graph(
             state["audio_segments"],
@@ -423,6 +489,7 @@ async def analyze_pitch(
     manifest: dict,
     audio_segments: list[dict],
     video_snapshots: list[dict],
+    transcripts: list[dict],
 ) -> PitchAnalysisState:
     """Run the full multi-agent orchestration and return the final state."""
     initial: PitchAnalysisState = {
@@ -432,8 +499,10 @@ async def analyze_pitch(
         "manifest": manifest,
         "audio_segments": audio_segments,
         "video_snapshots": video_snapshots,
+        "transcripts": transcripts,
         "audio_insights": None,
         "video_insights": None,
+        "transcript_insights": None,
         "improvement_roadmap": None,
         "confidence_graph": None,
         "verdict": None,
