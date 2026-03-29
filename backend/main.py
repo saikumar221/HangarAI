@@ -1,15 +1,20 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from db.database import init_db
+from routes.brainstorm import router as brainstorm_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Create all DB tables on startup if they don't exist
     await init_db()
     yield
 
 
 app = FastAPI(title="HangarAI API", lifespan=lifespan)
+
+# Register brainstorm routes under /brainstorm prefix
+app.include_router(brainstorm_router, prefix="/brainstorm")
 
 
 @app.get("/health")
