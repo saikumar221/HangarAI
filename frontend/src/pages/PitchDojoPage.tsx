@@ -5,6 +5,7 @@ import type { FaceLandmarkerResult, PoseLandmarkerResult } from '@mediapipe/task
 import AppNav from '../components/AppNav'
 import { getUserManifest } from '../api/brainstorm'
 import type { ApiManifest } from '../api/brainstorm'
+import { createPitchSession } from '../api/pitch'
 
 const WS_BASE = 'ws://localhost:8000/pitch/ws'
 
@@ -234,6 +235,10 @@ export default function PitchDojoPage() {
         if (videoRef.current) {
           videoRef.current.srcObject = stream
         }
+
+        // Session must exist in DB before the audio WebSocket connects,
+        // otherwise the server can't associate incoming audio segments with a session
+        await createPitchSession(sessionId.current, form)
 
         // — Audio WebSocket —
         const audioWs = new WebSocket(`${WS_BASE}/${sessionId.current}/audio`)
