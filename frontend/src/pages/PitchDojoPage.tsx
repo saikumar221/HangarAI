@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 const MANIFEST = {
@@ -8,6 +8,8 @@ const MANIFEST = {
   target_customer: 'Early-stage founders (pre-seed to Series A)',
   market_size: '$4.5B founder prep market',
 }
+
+const WS_BASE = 'ws://localhost:8000/pitch/ws'
 
 interface InvestorForm {
   firstName: string
@@ -26,6 +28,87 @@ export default function PitchDojoPage() {
     notes: '',
   })
   const [pitchActive, setPitchActive] = useState(false)
+  const [mediaError, setMediaError] = useState<string | null>(null)
+
+  // Stable session ID for the duration of this page visit
+  const sessionId = useRef<string>(crypto.randomUUID())
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const audioWsRef = useRef<WebSocket | null>(null)
+  const videoWsRef = useRef<WebSocket | null>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const frameIntervalRef = useRef<number | null>(null)
+
+  // Start / stop media + WebSockets when pitch state toggles
+  useEffect(() => {
+    if (!pitchActive) return
+
+    async function start() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+        streamRef.current = stream
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+        }
+
+        // — Audio WebSocket —
+        const audioWs = new WebSocket(`${WS_BASE}/${sessionId.current}/audio`)
+        audioWsRef.current = audioWs
+
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm'
+
+        const audioStream = new MediaStream(stream.getAudioTracks())
+        const recorder = new MediaRecorder(audioStream, { mimeType })
+        recorderRef.current = recorder
+
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0 && audioWs.readyState === WebSocket.OPEN) {
+            audioWs.send(e.data)
+          }
+        }
+        recorder.start(3000) // 3-second chunks
+
+        // — Video WebSocket —
+        const videoWs = new WebSocket(`${WS_BASE}/${sessionId.current}/video`)
+        videoWsRef.current = videoWs
+
+        // Capture 1 JPEG frame per second from the video element
+        const videoEl = videoRef.current!
+        frameIntervalRef.current = window.setInterval(() => {
+          if (!videoEl || videoEl.videoWidth === 0) return
+          if (videoWs.readyState !== WebSocket.OPEN) return
+
+          const canvas = document.createElement('canvas')
+          canvas.width = videoEl.videoWidth
+          canvas.height = videoEl.videoHeight
+          canvas.getContext('2d')?.drawImage(videoEl, 0, 0)
+          canvas.toBlob(
+            (blob) => { if (blob) blob.arrayBuffer().then(buf => videoWs.send(buf)) },
+            'image/jpeg',
+            0.7
+          )
+        }, 1000)
+
+      } catch (err) {
+        console.error('Failed to start pitch:', err)
+        setMediaError('Could not access camera or microphone. Check browser permissions.')
+        setPitchActive(false)
+      }
+    }
+
+    start()
+
+    return () => {
+      recorderRef.current?.stop()
+      if (frameIntervalRef.current) clearInterval(frameIntervalRef.current)
+      audioWsRef.current?.close()
+      videoWsRef.current?.close()
+      streamRef.current?.getTracks().forEach(t => t.stop())
+    }
+  }, [pitchActive])
 
   const canStart =
     form.firstName.trim().length > 0 &&
@@ -36,6 +119,7 @@ export default function PitchDojoPage() {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
+  // ── Active pitch: video call layout ──────────────────────────────────────
   if (pitchActive) {
     return (
       <div className="call-root">
@@ -49,13 +133,13 @@ export default function PitchDojoPage() {
 
         <div className="call-body">
           <div className="call-video-area">
-            <div className="call-video-placeholder">
-              <svg width="36" height="28" viewBox="0 0 36 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="1" y="1" width="22" height="18" rx="3" stroke="#2A2820" strokeWidth="1.5"/>
-                <path d="M23 8l10-6v18l-10-6V8z" stroke="#2A2820" strokeWidth="1.5" strokeLinejoin="round"/>
-              </svg>
-              <div className="call-video-label">Camera connecting...</div>
-            </div>
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="call-video-feed"
+            />
           </div>
 
           <div className="call-investor-card">
@@ -81,6 +165,7 @@ export default function PitchDojoPage() {
     )
   }
 
+  // ── Pre-pitch: manifest + investor form ───────────────────────────────────
   return (
     <div className="hangar-root">
       <aside className="sidebar">
@@ -89,7 +174,7 @@ export default function PitchDojoPage() {
         </div>
 
         <div className="sidebar-nav">
-          <Link to="/" className="snav-item">
+          <Link to="/chat" className="snav-item">
             <div className="snav-dot" />
             Brainstorm
           </Link>
@@ -121,6 +206,10 @@ export default function PitchDojoPage() {
         </div>
 
         <div className="pitch-content">
+          {mediaError && (
+            <div className="pitch-error">{mediaError}</div>
+          )}
+
           <div className="pitch-manifest-card">
             <div className="pmc-label">Your Startup</div>
             <div className="pmc-oneliner">{MANIFEST.one_liner}</div>
