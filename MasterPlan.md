@@ -17,7 +17,17 @@ Provide a live multimodal pitch simulation where three specialized agents (Trans
 ## Features
 - Feature 1: Idea Finalization: A React chat interface where a Consultant Agent uses iCoT to challenge the founder, surface competitors, and extract a finalized manifest into the DB.
 - Feature 2: The Pitch Dojo: A live-streaming simulation. Users select an investor persona (e.g., Paul Graham) that interjects follow-up questions during natural pauses. Results are merged into a unified performance dashboard.
-## Team Plan (15-Hour Sprint)
+
+## Differentiation Strategy
+| Competitor | What they do | Why Hangar wins |
+|------------|-------------|-----------------|
+| Yoodli | Speech coaching, tracks filler words and pacing | No idea validation layer, no investor personas, no manifest |
+| PitchBob | AI feedback on your pitch deck | Deck-only, no live simulation, no real-time audio/video |
+| Poised | Real-time coaching during meetings | Generic meeting context, not built for founder/investor dynamics |
+
+Hangar's one-liner: The only tool that takes a founder from raw messy idea → structured manifest → live multimodal pitch simulation in a single flow.
+
+## Team Plan
 - Sai & Sahana: Scaffold React/FastAPI
 - Sai: Set up PostgreSQL schema
 - Sahana: Initialize LangGraph state.
@@ -28,3 +38,35 @@ Provide a live multimodal pitch simulation where three specialized agents (Trans
 - Sai: Integrate MediaPipe
 - Sai & Sahana: Build the fusion engine to sync signals.
 - Sai & Sahana: Build the final reporting dashboard (Confidence Graph + Persona Verdict)
+
+### Build TODO
+
+#### Phase 1 — Infrastructure
+- [ ] Setup React frontend - Sai & Sahana
+- [ ] Setup FastAPI backend - Sai & Sahana
+- [ ] Design and initialize PostgreSQL schema - Sai
+- [ ] Initialize LangGraph state machine skeleton - Sahana
+
+#### Phase 2 — Feature 1: Idea Finalization
+- [ ] Build chat UI
+- [ ] Build Consultant Agent 
+- [ ] Build entity extraction logic 
+- [ ] Persist finalized Startup Manifest to PostgreSQL
+
+#### Phase 3 — Feature 2: Pitch Dojo
+- [ ] Setup API
+- [ ] Fetch the Finalized Startup Manifest from PostgreSQL
+- [ ] Integrate LiveKit 
+- [ ] Integrate Deepgram for speech-to-text with timestamped transcript output
+- [ ] Build Agent 1: Investor Persona LLM
+- [ ] Integrate Hume AI (EVI)
+- [ ] Integrate MediaPipe in the UI
+- [ ] Build LangGraph orchestrator
+- [ ] Build signal fusion engine 
+
+#### Phase 4 — Scoring & Dashboard
+- [ ] Build scoring engine — compute section-level and overall confidence/performance scores from fused signal
+- [ ] Build post-pitch dashboard — strengths, weaknesses, per-section improvement suggestions
+- [ ] Build confidence score graph — time-series chart with timestamp markers from the session
+- [ ] Build persona verdict output — final verdict generated in the selected investor's voice/style
+- [ ] Update README with final tech stack and setup instructions
