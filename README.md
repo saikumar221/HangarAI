@@ -31,7 +31,7 @@ After each session, founders receive:
 ## Tech Stack
 
 **Backend**
-- Python, FastAPI, LangGraph
+- Python, FastAPI, LangGraph, Gemini API
 - PostgreSQL (SQLAlchemy async)
 - Deepgram (STT), Hume AI (audio emotion), LiveKit (AV streaming)
 
