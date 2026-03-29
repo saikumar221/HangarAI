@@ -42,22 +42,22 @@ Hangar's one-liner: The only tool that takes a founder from raw messy idea → s
 ### Build TODO
 
 #### Phase 1 — Infrastructure
-- [ ] Setup React frontend - Sai & Sahana
-- [ ] Setup FastAPI backend - Sai & Sahana
-- [ ] Design and initialize PostgreSQL schema - Sai
-- [ ] Initialize LangGraph state machine skeleton - Sahana
+- [x] Setup React frontend - Sai & Sahana
+- [x] Setup FastAPI backend - Sai & Sahana
+- [x] Design and initialize PostgreSQL schema - Sai
+- [x] Initialize LangGraph state machine skeleton - Sahana
 
 #### Phase 2 — Feature 1: Idea Finalization
-- [ ] Build chat UI
-- [ ] Build Consultant Agent 
-- [ ] Build entity extraction logic 
-- [ ] Persist finalized Startup Manifest to PostgreSQL
+- [x] Build chat UI - Sai
+- [x] Build Consultant Agent - Sahana
+- [x] Build entity extraction logic - Sahana
+- [x] Persist finalized Startup Manifest to PostgreSQL - Sahana
 
 #### Phase 3 — Feature 2: Pitch Dojo
-- [ ] Setup API
-- [ ] Fetch the Finalized Startup Manifest from PostgreSQL
-- [ ] Integrate LiveKit 
-- [ ] Integrate Deepgram for speech-to-text with timestamped transcript output
+- [ ] Setup API - Sai
+- [ ] Fetch the Finalized Startup Manifest from PostgreSQL - Sai
+- [ ] Integrate LiveKit - Sai 
+- [ ] Integrate Deepgram for speech-to-text with timestamped transcript output - Sai
 - [ ] Build Agent 1: Investor Persona LLM
 - [ ] Integrate Hume AI (EVI)
 - [ ] Integrate MediaPipe in the UI
