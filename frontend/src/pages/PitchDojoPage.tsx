@@ -206,6 +206,7 @@ export default function PitchDojoPage() {
 
       snapshotsRef.current = [...snapshotsRef.current, snapshot]
       setSnapshots(snapshotsRef.current)
+      console.log(`[MediaPipe] snapshot #${snapshotsRef.current.length} at ${snapshot.timestamp}s`, snapshot)
       frameBuffer.current = []
       lastSnapshotRef.current = elapsedSec
     }
@@ -278,9 +279,27 @@ export default function PitchDojoPage() {
     }
   }, [pitchActive])
 
-  function endPitch() {
+  async function endPitch() {
     const results = getMediaPipeResults()
-    console.log('[MediaPipe] Final snapshots:', results)
+    console.log(`[endPitch] snapshots collected: ${results.length}`, results)
+    console.log(`[endPitch] faceLandmarker ready: ${!!faceLandmarkerRef.current}, poseLandmarker ready: ${!!poseLandmarkerRef.current}`)
+    console.log(`[endPitch] frameBuffer size at end: ${frameBuffer.current.length}`)
+
+    if (results.length === 0) {
+      console.warn('[endPitch] No snapshots — pitch may have been under 5 s or no face/pose was detected. Skipping API call.')
+    } else {
+      try {
+        console.log(`[endPitch] POST /pitch/sessions/${sessionId.current}/video-analysis`)
+        const res = await fetch(`http://localhost:8000/pitch/sessions/${sessionId.current}/video-analysis`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(results),
+        })
+        console.log(`[endPitch] response status: ${res.status}`, await res.json())
+      } catch (err) {
+        console.error('[endPitch] fetch failed:', err)
+      }
+    }
     setPitchActive(false)
   }
 
