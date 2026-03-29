@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from db.database import init_db
 from routes.brainstorm import router as brainstorm_router
+from routes.auth import router as auth_router
 
 
 @asynccontextmanager
@@ -15,6 +16,7 @@ app = FastAPI(title="HangarAI API", lifespan=lifespan)
 
 # Register brainstorm routes under /brainstorm prefix
 app.include_router(brainstorm_router, prefix="/brainstorm")
+app.include_router(auth_router, prefix="/auth")
 
 
 @app.get("/health")

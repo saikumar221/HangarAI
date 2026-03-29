@@ -28,8 +28,8 @@ export default function LandingPage() {
       <nav className="landing-nav">
         <div className="landing-logo">Hangar<span>AI</span></div>
         <div className="landing-nav-right">
-          <button className="nav-link" onClick={() => navigate('/home')}>Log in</button>
-          <button className="nav-cta" onClick={() => navigate('/home')}>Sign up</button>
+          <button className="nav-link" onClick={() => navigate('/login')}>Log in</button>
+          <button className="nav-cta" onClick={() => navigate('/signup')}>Sign up</button>
         </div>
       </nav>
 
@@ -44,7 +44,7 @@ export default function LandingPage() {
           that turns founder intuition into something fundable.
         </p>
         <div className="landing-hero-actions">
-          <button className="hero-btn-primary" onClick={() => navigate('/home')}>Start for free</button>
+          <button className="hero-btn-primary" onClick={() => navigate('/signup')}>Start for free</button>
           <button className="hero-btn-ghost">See how it works</button>
         </div>
       </section>
@@ -75,7 +75,7 @@ export default function LandingPage() {
           <div className="cta-strip-headline">Ready to stress-test your idea?</div>
           <div className="cta-strip-sub">No pitch deck needed. Just start talking.</div>
         </div>
-        <button className="hero-btn-primary" onClick={() => navigate('/home')}>Get started</button>
+        <button className="hero-btn-primary" onClick={() => navigate('/signup')}>Get started</button>
       </section>
 
       {/* Footer */}

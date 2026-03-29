@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom'
+import { useUser } from '../hooks/useUser'
+import { logout } from '../api/auth'
 
 const FEATURES = [
   {
@@ -19,8 +21,28 @@ const FEATURES = [
   },
 ]
 
+function getInitials(firstName: string, lastName: string) {
+  return `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()
+}
+
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
+  const user = useUser()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/')
+  }
+
+  const initials = user ? getInitials(user.first_name, user.last_name) : '?'
+  const displayName = user ? user.first_name : 'there'
 
   return (
     <div className="home">
@@ -29,14 +51,16 @@ export default function HomePage() {
       <nav className="home-nav">
         <div className="home-logo">Hangar<span>AI</span></div>
         <div className="home-nav-right">
-          <div className="home-nav-link">Sessions</div>
-          <div className="home-avatar">JD</div>
+          <div className="home-nav-link" onClick={handleLogout}>Log out</div>
+          <div className="home-avatar" title={user ? `${user.first_name} ${user.last_name}` : ''}>
+            {initials}
+          </div>
         </div>
       </nav>
 
       {/* Header */}
       <header className="home-header">
-        <div className="home-greeting">Good morning, Jamie.</div>
+        <div className="home-greeting">{getGreeting()}, {displayName}.</div>
         <h1 className="home-title">What are we building today?</h1>
       </header>
 

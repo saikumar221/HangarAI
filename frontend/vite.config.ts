@@ -8,6 +8,7 @@ export default defineConfig({
     proxy: {
       '/brainstorm': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
+      '/auth': 'http://localhost:8000',
     },
   },
 })
