@@ -73,7 +73,7 @@ export default function PitchDojoPage() {
             audioWs.send(e.data)
           }
         }
-        recorder.start(3000) // 3-second chunks
+        recorder.start(1500) // 1.5s chunks — keeps header+chunk under Hume's 5s limit
 
         // — Video WebSocket —
         const videoWs = new WebSocket(`${WS_BASE}/${sessionId.current}/video`)
