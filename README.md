@@ -42,6 +42,14 @@ A **Synthesis Engine** fuses both outputs into a full report:
 - **Confidence Graph** — per-timestamp composite score merging vocal emotion valence + visual presence metrics, visualized as an interactive SVG timeline
 - **The Verdict** — Pre-Seed Readiness Score (0–100), go/no-go decision, and a detailed assessment written in the target investor's voice
 
+## Roadmap
+
+| Item | Notes |
+|------|-------|
+| Speech-to-text (transcripts) | `PitchTranscript` model and DB table exist but are never populated. Deepgram API key is wired in `.env` — integration not yet implemented. |
+| Transcript-synced confidence graph | Once STT is in, transcript segments can be annotated on the confidence timeline at their exact timestamps. |
+| Live investor persona interjections | Planned: LLM interjects follow-up questions in the investor's voice at natural pauses during the pitch. |
+
 ## Implementation Status
 
 | Component | Status |
@@ -53,7 +61,6 @@ A **Synthesis Engine** fuses both outputs into a full report:
 | Hume AI prosody integration | ✅ Complete |
 | MediaPipe video analysis (client-side) | ✅ Complete |
 | LangGraph multi-agent orchestrator | ✅ Complete |
-| Audio Agent (Gemini) | ✅ Complete |
 | Video Agent (Gemini) | ✅ Complete |
 | Signal fusion + Confidence Graph | ✅ Complete |
 | Pre-Seed Readiness Score + Verdict | ✅ Complete |
