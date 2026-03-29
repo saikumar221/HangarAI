@@ -66,9 +66,7 @@ export default function ChatArea({
       <div className="messages">
         {!sessionId ? (
           <div className="empty-state">
-            <div className="empty-text">
-              Start a new session to begin brainstorming your startup idea.
-            </div>
+            <div className="empty-text">Loading your session...</div>
           </div>
         ) : (
           <>

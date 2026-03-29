@@ -1,14 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AppNav from '../components/AppNav'
+import { getUserManifest } from '../api/brainstorm'
+import type { ApiManifest } from '../api/brainstorm'
 
-const MANIFEST = {
-  one_liner: 'Hangar turns raw startup ideas into investor-ready pitches using AI',
-  problem: 'Founders walk into investor meetings underprepared — the pitch feedback loop is broken',
-  solution: 'A modular AI factory that stress-tests your idea, then simulates a live pitch with an investor persona',
-  target_customer: 'Early-stage founders (pre-seed to Series A)',
-  market_size: '$4.5B founder prep market',
-}
 
 const WS_BASE = 'ws://localhost:8000/pitch/ws'
 
@@ -21,6 +16,8 @@ interface InvestorForm {
 }
 
 export default function PitchDojoPage() {
+  const navigate = useNavigate()
+  const [manifest, setManifest] = useState<ApiManifest | null>(null)
   const [form, setForm] = useState<InvestorForm>({
     firstName: '',
     lastName: '',
@@ -30,6 +27,12 @@ export default function PitchDojoPage() {
   })
   const [pitchActive, setPitchActive] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getUserManifest()
+      .then(setManifest)
+      .catch(() => navigate('/manifest'))
+  }, [])
 
   // Stable session ID for the duration of this page visit
   const sessionId = useRef<string>(crypto.randomUUID())
@@ -127,7 +130,7 @@ export default function PitchDojoPage() {
         <div className="call-header">
           <div className="call-header-left">
             <button className="call-back-btn" onClick={() => setPitchActive(false)}>←</button>
-            <div className="call-manifest-title">{MANIFEST.one_liner}</div>
+            <div className="call-manifest-title">{manifest?.one_liner}</div>
           </div>
           <div className="call-timer">0:00</div>
         </div>
@@ -168,66 +171,40 @@ export default function PitchDojoPage() {
 
   // ── Pre-pitch: manifest + investor form ───────────────────────────────────
   return (
-    <div className="hangar-root">
-      <aside className="sidebar">
-        <div className="sidebar-top">
-          <Link to="/home" className="logo">Hangar<span>AI</span></Link>
+    <div className="pitch-page">
+      <nav className="home-nav">
+        <Link to="/home" className="home-logo">Hangar<span>AI</span></Link>
+        <div className="home-nav-right">
+          <AppNav />
         </div>
+      </nav>
 
-        <div className="sidebar-nav">
-          <Link to="/chat" className="snav-item">
-            <div className="snav-dot" />
-            Brainstorm
-          </Link>
-          <Link to="/pitch-dojo" className="snav-item active">
-            <div className="snav-dot" />
-            Pitch Dojo
-          </Link>
-        </div>
-
-        <div className="sidebar-section">
+      <div className="pitch-body">
+        <aside className="pitch-sidebar">
           <div className="sec-label">Pitch Sessions</div>
           <div className="sitem-empty">No sessions yet</div>
-        </div>
-
-        <div className="sidebar-footer">
-          <div className="user-row">
-            <div className="uavatar">JD</div>
-            <div className="uname">Jamie D.</div>
-          </div>
-        </div>
-      </aside>
-
-      <div className="pitch-main">
-        <div className="chat-header">
-          <Link to="/home" className="logo">Hangar<span>AI</span></Link>
-          <div className="header-right">
-            <AppNav />
-            <span className="hlink">Idea ready</span>
-          </div>
-        </div>
+        </aside>
 
         <div className="pitch-content">
-          {mediaError && (
-            <div className="pitch-error">{mediaError}</div>
-          )}
+        {mediaError && (
+          <div className="pitch-error">{mediaError}</div>
+        )}
 
-          <div className="pitch-manifest-card">
+        <div className="pitch-manifest-card">
             <div className="pmc-label">Your Startup</div>
-            <div className="pmc-oneliner">{MANIFEST.one_liner}</div>
+            <div className="pmc-oneliner">{manifest?.one_liner}</div>
             <div className="pmc-row">
               <div className="pmc-col">
                 <div className="pmc-field-label">Problem</div>
-                <div className="pmc-field-text">{MANIFEST.problem}</div>
+                <div className="pmc-field-text">{manifest?.problem}</div>
               </div>
               <div className="pmc-col">
                 <div className="pmc-field-label">Solution</div>
-                <div className="pmc-field-text">{MANIFEST.solution}</div>
+                <div className="pmc-field-text">{manifest?.solution}</div>
               </div>
             </div>
             <div className="pmc-chips">
-              <div className="cc-chip flag">{MANIFEST.target_customer}</div>
-              <div className="cc-chip">{MANIFEST.market_size}</div>
+              <div className="cc-chip">{manifest?.market_size}</div>
             </div>
           </div>
 

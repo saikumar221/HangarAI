@@ -16,7 +16,8 @@ class User(Base):
     last_name: Mapped[str] = mapped_column(Text, nullable=False)
     created_at = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
 
-    session: Mapped["BrainstormSession | None"] = relationship("BrainstormSession", back_populates="user", uselist=False)
+    sessions: Mapped[list["BrainstormSession"]] = relationship("BrainstormSession", back_populates="user")
+    manifest: Mapped["StartupManifest | None"] = relationship("StartupManifest", back_populates="user", uselist=False)
 
 
 class BrainstormSession(Base):
@@ -30,7 +31,7 @@ class BrainstormSession(Base):
     created_at = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     completed_at = mapped_column(TIMESTAMP(timezone=True), nullable=True)
 
-    user: Mapped["User | None"] = relationship("User", back_populates="session")
+    user: Mapped["User | None"] = relationship("User", back_populates="sessions")
     messages: Mapped[list["Message"]] = relationship("Message", back_populates="session")
     manifest: Mapped["StartupManifest | None"] = relationship("StartupManifest", back_populates="session", uselist=False)
 
@@ -59,6 +60,8 @@ class StartupManifest(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # Links back to the session this manifest was extracted from
     brainstorm_session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brainstorm_sessions.id"), nullable=False)
+    # Direct link to the user — one manifest per user
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, unique=True)
 
     # Core idea fields — extracted by the agent during finalization
     one_liner: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -75,3 +78,4 @@ class StartupManifest(Base):
     created_at = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
 
     session: Mapped["BrainstormSession"] = relationship("BrainstormSession", back_populates="manifest")
+    user: Mapped["User | None"] = relationship("User", back_populates="manifest")

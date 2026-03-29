@@ -1309,18 +1309,34 @@ body {
 
 /* ==================== PITCH DOJO (PRE-PITCH) ==================== */
 
-.pitch-main {
+.pitch-page {
+  min-height: 100vh;
+  background: #fbf7f0;
+  color: #0A0908;
   display: flex;
   flex-direction: column;
-  background: #fbf7f0;
+}
+
+.pitch-body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  flex: 1;
   overflow: hidden;
-  height: 100vh;
+}
+
+.pitch-sidebar {
+  background: #fbf7f0;
+  border-right: 0.5px solid #E2E1DE;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
 }
 
 .pitch-content {
-  flex: 1;
   overflow-y: auto;
-  padding: 32px 40px;
+  padding: 40px 56px 80px;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -1857,4 +1873,171 @@ body {
   border-right: 5px solid transparent;
   border-bottom: 7px solid #ffffff;
   margin-bottom: 1px;
+}
+
+/* ==================== MANIFEST PAGE ==================== */
+
+.manifest-page {
+  min-height: 100vh;
+  background: #fbf7f0;
+  color: #0A0908;
+  display: flex;
+  flex-direction: column;
+}
+
+.manifest-main {
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 64px 72px 96px;
+}
+
+.manifest-loading,
+.manifest-error {
+  margin-top: 48px;
+  font-size: 14px;
+  font-weight: 300;
+  color: #9A9998;
+  letter-spacing: 0.01em;
+}
+
+.manifest-error {
+  color: #0b1370;
+}
+
+.manifest-header {
+  margin-bottom: 56px;
+}
+
+.manifest-eyebrow {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9A9998;
+  margin-bottom: 16px;
+}
+
+.manifest-headline {
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #0A0908;
+  margin-bottom: 28px;
+  max-width: 720px;
+}
+
+.manifest-back-btn {
+  background: transparent;
+  border: 0.5px solid #D0CFCC;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: #6A6968;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 4px;
+  transition: border-color 0.2s, color 0.2s, transform 0.2s;
+}
+
+.manifest-back-btn:hover {
+  border-color: #9A9998;
+  color: #3A3938;
+  transform: translateY(-1px);
+}
+
+.manifest-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  border: 0.5px solid #E2E1DE;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1px;
+}
+
+.manifest-section {
+  padding: 28px 32px;
+  background: #fbf7f0;
+  border-right: 0.5px solid #E2E1DE;
+  border-bottom: 0.5px solid #E2E1DE;
+}
+
+.manifest-section:nth-child(even) {
+  border-right: none;
+}
+
+.manifest-section-label {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9A9998;
+  margin-bottom: 10px;
+}
+
+.manifest-section-body {
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.7;
+  color: #3A3938;
+  letter-spacing: 0.01em;
+}
+
+.manifest-lists {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 0.5px solid #E2E1DE;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+.manifest-list-block {
+  padding: 24px 32px;
+  background: #fbf7f0;
+  border-top: 0.5px solid #E2E1DE;
+}
+
+.manifest-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.manifest-list-item {
+  font-size: 13px;
+  font-weight: 300;
+  color: #3A3938;
+  background: #F3F2EF;
+  border: 0.5px solid #E2E1DE;
+  border-radius: 4px;
+  padding: 5px 12px;
+  letter-spacing: 0.01em;
+}
+
+.manifest-list-item-flag {
+  color: #0b1370;
+  background: rgba(11, 19, 112, 0.05);
+  border-color: rgba(11, 19, 112, 0.2);
+}
+
+.manifest-empty {
+  margin-top: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.manifest-empty-text {
+  font-size: 14px;
+  font-weight: 300;
+  color: #6A6968;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
 }

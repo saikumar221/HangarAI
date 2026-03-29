@@ -44,6 +44,10 @@ export async function login(email: string, password: string): Promise<void> {
   }
 }
 
+export function getAuthToken(): string | null {
+  return localStorage.getItem('token')
+}
+
 export function getStoredUser(): StoredUser | null {
   try {
     return JSON.parse(localStorage.getItem('user') ?? 'null')

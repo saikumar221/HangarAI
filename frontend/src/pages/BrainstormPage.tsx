@@ -1,69 +1,51 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import ChatArea from '../components/ChatArea'
-import { createSession, sendMessage, finalizeSession, deleteSession } from '../api/brainstorm'
-import type { SessionRecord, ChatItem, Phase } from '../types/brainstorm'
-
-const SESSIONS_KEY = 'hangar_sessions'
-
-function loadStored(): SessionRecord[] {
-  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) ?? '[]') }
-  catch { return [] }
-}
-
-function persist(sessions: SessionRecord[]) {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
-}
+import { createSession, sendMessage, finalizeSession, deleteSession, deleteManifest, getSessions, getMessages } from '../api/brainstorm'
+import type { ChatItem, Phase } from '../types/brainstorm'
 
 export default function BrainstormPage() {
-  const [sessions, setSessions] = useState<SessionRecord[]>(loadStored)
-  const [activeId, setActiveId] = useState<string | null>(
-    () => loadStored().find(s => s.status === 'in_progress')?.id ?? null,
-  )
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const [items, setItems] = useState<ChatItem[]>([])
   const [phase, setPhase] = useState<Phase>('exploring')
   const [isLoading, setIsLoading] = useState(false)
 
-  const patchSession = useCallback((id: string, patch: Partial<SessionRecord>) => {
-    setSessions(prev => {
-      const next = prev.map(s => s.id === id ? { ...s, ...patch } : s)
-      persist(next)
-      return next
-    })
-  }, [])
+  // On mount: load existing session or create one
+  useEffect(() => {
+    async function initSession() {
+      try {
+        const sessions = await getSessions()
+        const existing = sessions.find(s => s.status === 'in_progress') ?? sessions[0] ?? null
 
-  const handleNewSession = useCallback(async () => {
-    try {
-      const session = await createSession()
-      const record: SessionRecord = { id: session.id, title: 'New session', status: 'in_progress' }
-      setSessions(prev => { const next = [record, ...prev]; persist(next); return next })
-      setActiveId(session.id)
-      setPhase('exploring')
-      setItems([{
-        type: 'message',
-        id: crypto.randomUUID(),
-        role: 'ai',
-        content: "What problem are you actually trying to solve — not the product, the underlying friction?",
-        live: true,
-      }])
-    } catch (err) {
-      console.error('Failed to create session', err)
+        if (existing) {
+          setSessionId(existing.id)
+          const msgs = await getMessages(existing.id)
+          const chatItems: ChatItem[] = msgs.map(m => ({
+            type: 'message' as const,
+            id: m.id,
+            role: m.role === 'user' ? 'user' as const : 'ai' as const,
+            content: m.content,
+          }))
+          setItems(chatItems)
+        } else {
+          const session = await createSession()
+          setSessionId(session.id)
+          setItems([{
+            type: 'message',
+            id: crypto.randomUUID(),
+            role: 'ai',
+            content: "What problem are you actually trying to solve — not the product, the underlying friction?",
+            live: true,
+          }])
+        }
+      } catch (err) {
+        console.error('Failed to initialize session', err)
+      }
     }
+    initSession()
   }, [])
-
-  const handleSelectSession = useCallback((id: string) => {
-    if (id === activeId) return
-    setActiveId(id)
-    setItems([])
-    setPhase('exploring')
-  }, [activeId])
 
   const handleSendMessage = useCallback(async (text: string) => {
-    if (!activeId || isLoading) return
-
-    const current = sessions.find(s => s.id === activeId)
-    if (current?.title === 'New session') {
-      patchSession(activeId, { title: text.length > 42 ? text.slice(0, 42) + '…' : text })
-    }
+    if (!sessionId || isLoading) return
 
     setItems(prev => [
       ...prev.map(item => item.type === 'message' ? { ...item, live: false, fade: true } : item),
@@ -73,7 +55,7 @@ export default function BrainstormPage() {
 
     try {
       const prevPhase = phase
-      const { reply, phase: rawPhase } = await sendMessage(activeId, text)
+      const { reply, phase: rawPhase } = await sendMessage(sessionId, text)
       const newPhase = rawPhase as Phase
 
       setItems(prev => {
@@ -98,31 +80,21 @@ export default function BrainstormPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [activeId, isLoading, phase, sessions, patchSession])
+  }, [sessionId, isLoading, phase])
 
   const handleExport = useCallback(async () => {
-    if (!activeId || isLoading) return
+    if (!sessionId || isLoading) return
     setIsLoading(true)
     try {
-      const m = await finalizeSession(activeId)
-      patchSession(activeId, { status: 'completed' })
-
-      const chips = [
-        m.target_customer && { text: m.target_customer },
-        m.market_size && { text: m.market_size },
-        (m.key_assumptions?.length ?? 0) > 0 && { text: `${m.key_assumptions!.length} key assumptions`, flag: true as const },
-      ].filter(Boolean) as { text: string; flag?: true }[]
+      await finalizeSession(sessionId)
 
       setItems(prev => [
         ...prev,
-        { type: 'divider', id: crypto.randomUUID(), label: 'Manifest exported' },
+        { type: 'divider', id: crypto.randomUUID(), label: 'Manifest ready' },
         {
-          type: 'message', id: crypto.randomUUID(), role: 'ai', content: m.one_liner ?? 'Session finalized.', live: true,
-          captureCard: {
-            label: 'Captured in manifest',
-            text: [m.problem, m.solution].filter(Boolean).join(' · ') || 'Manifest captured.',
-            chips: chips.length > 0 ? chips : [{ text: 'Manifest captured' }],
-          },
+          type: 'message', id: crypto.randomUUID(), role: 'ai',
+          content: 'Your manifest has been generated. You can view and export it from the Manifest page.',
+          live: true,
         },
       ])
       setPhase('finalizing')
@@ -131,32 +103,41 @@ export default function BrainstormPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [activeId, isLoading, patchSession])
+  }, [sessionId, isLoading])
 
   const handleClear = useCallback(async () => {
-    if (!activeId) return
+    if (!sessionId) return
     try {
-      await deleteSession(activeId)
+      await deleteSession(sessionId)
+      await deleteManifest()
     } catch (err) {
       console.error('Failed to delete session', err)
     }
-    setSessions(prev => {
-      const next = prev.filter(s => s.id !== activeId)
-      persist(next)
-      return next
-    })
-    setActiveId(null)
-    setItems([])
-    setPhase('exploring')
-  }, [activeId])
-
-  const activeSession = sessions.find(s => s.id === activeId)
+    // Create a fresh session after clearing
+    try {
+      const session = await createSession()
+      setSessionId(session.id)
+      setItems([{
+        type: 'message',
+        id: crypto.randomUUID(),
+        role: 'ai',
+        content: "What problem are you actually trying to solve — not the product, the underlying friction?",
+        live: true,
+      }])
+      setPhase('exploring')
+    } catch (err) {
+      console.error('Failed to create new session after clear', err)
+      setSessionId(null)
+      setItems([])
+      setPhase('exploring')
+    }
+  }, [sessionId])
 
   return (
     <div className="hangar-root">
       <ChatArea
-        title={activeSession?.title ?? 'HangarAI'}
-        sessionId={activeId}
+        title="HangarAI"
+        sessionId={sessionId}
         items={items}
         phase={phase}
         isLoading={isLoading}

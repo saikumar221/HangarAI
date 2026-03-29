@@ -1,12 +1,22 @@
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-
-const NAV_ITEMS = [
-  { label: 'Chat', path: '/chat', disabled: false },
-  { label: 'Pitch', path: '/pitch-dojo', disabled: true },
-]
+import { getUserManifest } from '../api/brainstorm'
 
 export default function AppNav() {
   const loc = useLocation()
+  const [hasManifest, setHasManifest] = useState(false)
+
+  useEffect(() => {
+    getUserManifest()
+      .then(() => setHasManifest(true))
+      .catch(() => setHasManifest(false))
+  }, [])
+
+  const NAV_ITEMS = [
+    { label: 'Pitch', path: '/pitch-dojo', disabled: !hasManifest },
+    { label: 'Chat', path: '/chat', disabled: false },
+    { label: 'Manifest', path: '/manifest', disabled: false },
+  ]
 
   return (
     <nav className="app-nav">

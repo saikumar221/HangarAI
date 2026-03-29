@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import BrainstormPage from './pages/BrainstormPage'
 import PitchDojoPage from './pages/PitchDojoPage'
+import ManifestPage from './pages/ManifestPage'
 
 export default function App() {
   return (
@@ -16,6 +17,8 @@ export default function App() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/chat" element={<BrainstormPage />} />
         <Route path="/pitch-dojo" element={<PitchDojoPage />} />
+        <Route path="/manifest" element={<ManifestPage />} />
+        <Route path="/manifest/:sessionId" element={<ManifestPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

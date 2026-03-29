@@ -2,26 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 import { logout } from '../api/auth'
+import { getUserManifest } from '../api/brainstorm'
 import AppNav from '../components/AppNav'
-
-const FEATURES = [
-  {
-    tag: 'Feature 01',
-    title: 'Idea Finalization',
-    description:
-      'Work with an AI consultant to pressure-test your startup idea. Surface gaps, identify competitors, and lock in your problem, solution, and target customer.',
-    cta: 'Start brainstorming',
-    status: 'available' as const,
-  },
-  {
-    tag: 'Feature 02',
-    title: 'The Pitch Dojo',
-    description:
-      'Deliver your pitch live to an AI investor persona. Three parallel agents analyze your transcript, vocal confidence, and visual presence simultaneously.',
-    cta: 'Coming soon',
-    status: 'soon' as const,
-  },
-]
 
 function getInitials(firstName: string, lastName: string) {
   return `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()
@@ -31,7 +13,14 @@ export default function HomePage() {
   const navigate = useNavigate()
   const user = useUser()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [hasManifest, setHasManifest] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    getUserManifest()
+      .then(() => setHasManifest(true))
+      .catch(() => setHasManifest(false))
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -98,16 +87,33 @@ export default function HomePage() {
 
       {/* Feature cards */}
       <section className="home-cards">
-        {FEATURES.map(f => (
+        {[
+          {
+            tag: 'Feature 01',
+            title: 'Idea Finalization',
+            description: 'Work with an AI consultant to pressure-test your startup idea. Surface gaps, identify competitors, and lock in your problem, solution, and target customer.',
+            cta: 'Start brainstorming',
+            status: 'available' as const,
+            route: '/chat',
+          },
+          {
+            tag: 'Feature 02',
+            title: 'The Pitch Dojo',
+            description: 'Deliver your pitch live to an AI investor persona. Three parallel agents analyze your transcript, vocal confidence, and visual presence simultaneously.',
+            cta: hasManifest ? 'Start pitching' : 'Complete your manifest first',
+            status: hasManifest ? 'available' as const : 'soon' as const,
+            route: '/pitch-dojo',
+          },
+        ].map(f => (
           <div key={f.tag} className={`home-card${f.status === 'soon' ? ' home-card-dim' : ''}`}>
             <div className="home-card-top">
-              {f.status === 'soon' && <div className="home-card-badge">Coming soon</div>}
+              {f.status === 'soon' && <div className="home-card-badge">{f.tag === 'Feature 02' ? 'Finish your manifest' : 'Coming soon'}</div>}
             </div>
             <div className="home-card-title">{f.title}</div>
             <div className="home-card-desc">{f.description}</div>
             <button
               className={`home-card-btn${f.status === 'soon' ? ' home-card-btn-dim' : ''}`}
-              onClick={f.status === 'available' ? () => navigate('/chat') : undefined}
+              onClick={f.status === 'available' ? () => navigate(f.route) : undefined}
               disabled={f.status === 'soon'}
             >
               {f.cta}
