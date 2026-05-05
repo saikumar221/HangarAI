@@ -1,3 +1,5 @@
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
+
 export interface StoredUser {
   id: string
   email: string
@@ -6,7 +8,7 @@ export interface StoredUser {
 }
 
 export async function signup(email: string, password: string, first_name: string, last_name: string): Promise<StoredUser> {
-  const res = await fetch('/auth/signup', {
+  const res = await fetch(`${API_BASE}/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, first_name, last_name }),
@@ -22,7 +24,7 @@ export async function signup(email: string, password: string, first_name: string
 
 export async function login(email: string, password: string): Promise<void> {
   const body = new URLSearchParams({ username: email, password })
-  const res = await fetch('/auth/login', {
+  const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
@@ -35,7 +37,7 @@ export async function login(email: string, password: string): Promise<void> {
   localStorage.setItem('token', access_token)
 
   // Fetch and store user info
-  const meRes = await fetch('/auth/me', {
+  const meRes = await fetch(`${API_BASE}/auth/me`, {
     headers: { Authorization: `Bearer ${access_token}` },
   })
   if (meRes.ok) {

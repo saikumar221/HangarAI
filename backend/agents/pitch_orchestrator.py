@@ -22,7 +22,7 @@ from typing import Optional, TypedDict
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langgraph.graph import END, START, StateGraph
 
 from core.utils import parse_json_response
@@ -416,7 +416,7 @@ Return ONLY valid JSON. No markdown fences.\
 # ---------------------------------------------------------------------------
 
 
-async def _run_audio_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisState) -> dict:
+async def _run_audio_agent(llm: ChatGroq, state: PitchAnalysisState) -> dict:
     prompt = _AUDIO_AGENT_PROMPT.format(
         manifest=_format_manifest(state["manifest"]),
         investor_name=state["investor_name"],
@@ -427,7 +427,7 @@ async def _run_audio_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisStat
     return parse_json_response(response.content)
 
 
-async def _run_video_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisState) -> dict:
+async def _run_video_agent(llm: ChatGroq, state: PitchAnalysisState) -> dict:
     prompt = _VIDEO_AGENT_PROMPT.format(
         manifest=_format_manifest(state["manifest"]),
         video_timeline=_format_video_timeline(state["video_snapshots"]),
@@ -436,7 +436,7 @@ async def _run_video_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisStat
     return parse_json_response(response.content)
 
 
-async def _run_transcript_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysisState) -> dict:
+async def _run_transcript_agent(llm: ChatGroq, state: PitchAnalysisState) -> dict:
     prompt = _TRANSCRIPT_AGENT_PROMPT.format(
         manifest=_format_manifest(state["manifest"]),
         investor_name=state["investor_name"],
@@ -448,7 +448,7 @@ async def _run_transcript_agent(llm: ChatGoogleGenerativeAI, state: PitchAnalysi
 
 
 async def _run_synthesis(
-    llm: ChatGoogleGenerativeAI,
+    llm: ChatGroq,
     state: PitchAnalysisState,
     audio_insights: dict,
     video_insights: dict,
@@ -473,9 +473,9 @@ async def _run_synthesis(
 
 
 def _build_graph():
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=os.getenv("GEMINI_API_KEY"),
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        api_key=os.getenv("GROQ_API_KEY"),
     )
 
     async def run_parallel_agents(state: PitchAnalysisState) -> dict:

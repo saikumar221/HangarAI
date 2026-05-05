@@ -1,6 +1,6 @@
 import { authHeaders } from './auth'
 
-const BASE = '/pitch'
+const BASE = `${import.meta.env.VITE_API_URL ?? ''}/pitch`
 
 // Creates the session row in the DB before the audio WebSocket opens.
 // Maps camelCase InvestorForm fields to the snake_case API schema.
@@ -90,7 +90,7 @@ export interface AnalysisReport {
 }
 
 export async function generateAnalysis(sessionId: string): Promise<AnalysisReport> {
-  const res = await fetch(`/analysis/pitch/${sessionId}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/analysis/pitch/${sessionId}`, {
     method: 'POST',
     headers: authHeaders(),
   })

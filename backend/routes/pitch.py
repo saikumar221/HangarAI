@@ -156,9 +156,6 @@ async def audio_stream(websocket: WebSocket, session_id: str):
 
             started = await dg_connection.start(LiveOptions(
                 model="nova-2",
-                encoding="opus",
-                sample_rate=48000,
-                channels=1,
                 smart_format=True,
                 interim_results=True,
                 utterance_end_ms="1000",
@@ -185,7 +182,16 @@ async def audio_stream(websocket: WebSocket, session_id: str):
                 print(f"[pitch:{session_id}] chunk #{chunks_received} bytes={len(data)}")
 
                 if not webm_header:
-                    # First chunk is the WebM container header.
+                    # MediaRecorder sometimes emits a tiny 1-byte init event before
+                    # the real EBML header chunk. Skip it and wait for a real header.
+                    if len(data) < 4:
+                        print(f"[pitch:{session_id}] skipping tiny init chunk ({len(data)} bytes)")
+                        if dg_connection:
+                            try:
+                                await dg_connection.send(data)
+                            except Exception as e:
+                                print(f"[deepgram:{session_id}] send error: {e}")
+                        continue
                     webm_header = data
                     print(f"[pitch:{session_id}] webm header captured ({len(data)} bytes)")
                     if dg_connection:

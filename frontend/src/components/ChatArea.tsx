@@ -15,7 +15,6 @@ interface Props {
 }
 
 export default function ChatArea({
-  title,
   sessionId,
   items,
   isLoading,

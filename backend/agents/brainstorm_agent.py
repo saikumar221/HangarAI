@@ -3,7 +3,7 @@ from typing import TypedDict, Literal, Optional
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
 
 from core.utils import parse_json_response
@@ -104,7 +104,7 @@ _MANIFEST_EXTRACTION_PROMPT = (
 )
 
 
-def _extract_manifest(llm: ChatGoogleGenerativeAI, messages: list[BaseMessage]) -> ManifestDict:
+def _extract_manifest(llm: ChatGroq, messages: list[BaseMessage]) -> ManifestDict:
     # Format the full conversation as plain text for the extraction prompt
     conversation = "\n".join(
         f"{'User' if isinstance(m, HumanMessage) else 'Assistant'}: {m.content}"
@@ -123,9 +123,9 @@ def _extract_manifest(llm: ChatGoogleGenerativeAI, messages: list[BaseMessage]) 
 # ---------------------------------------------------------------------------
 
 def _build_graph() -> StateGraph:
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=os.getenv("GEMINI_API_KEY"),
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        api_key=os.getenv("GROQ_API_KEY"),
     )
 
     def consultant_node(state: AgentState) -> AgentState:

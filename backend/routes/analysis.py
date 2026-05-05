@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -46,19 +47,27 @@ async def generate_pitch_analysis(
     if not session:
         raise HTTPException(status_code=404, detail="Pitch session not found")
 
-    audio_result = await db.execute(
-        select(PitchAudioSegment)
-        .where(PitchAudioSegment.pitch_session_id == session.id)
-        .order_by(PitchAudioSegment.start_time)
-    )
-    audio_segments = [
-        {
-            "start_time": seg.start_time,
-            "end_time": seg.end_time,
-            "emotions": seg.emotions,
-        }
-        for seg in audio_result.scalars().all()
-    ]
+    # The WebSocket handler saves audio segments asynchronously after closing
+    # (Deepgram finalize + sleep). Retry for up to 8 seconds to avoid a race
+    # where the analysis query runs before the segments are committed.
+    audio_segments = []
+    for _ in range(8):
+        audio_result = await db.execute(
+            select(PitchAudioSegment)
+            .where(PitchAudioSegment.pitch_session_id == session.id)
+            .order_by(PitchAudioSegment.start_time)
+        )
+        audio_segments = [
+            {
+                "start_time": seg.start_time,
+                "end_time": seg.end_time,
+                "emotions": seg.emotions,
+            }
+            for seg in audio_result.scalars().all()
+        ]
+        if audio_segments:
+            break
+        await asyncio.sleep(1)
 
     video_result = await db.execute(
         select(PitchVideoSnapshot)

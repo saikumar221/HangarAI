@@ -1,6 +1,6 @@
 import { authHeaders } from './auth'
 
-const BASE = '/brainstorm'
+const BASE = `${import.meta.env.VITE_API_URL ?? ''}/brainstorm`
 
 export interface ApiSession {
   id: string

@@ -4,12 +4,13 @@ import { FaceLandmarker, PoseLandmarker, FilesetResolver } from '@mediapipe/task
 import type { FaceLandmarkerResult, PoseLandmarkerResult } from '@mediapipe/tasks-vision'
 import AppNav from '../components/AppNav'
 import { getUserManifest } from '../api/brainstorm'
+import { authHeaders } from '../api/auth'
 import type { ApiManifest } from '../api/brainstorm'
 import { createPitchSession } from '../api/pitch'
 import { VC_PERSONAS } from '../data/vcPersonas'
 import type { VCPersona } from '../data/vcPersonas'
 
-const WS_BASE = 'ws://localhost:8000/pitch/ws'
+const WS_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/^http/, 'ws') + '/pitch/ws'
 
 const VISION_WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
 const FACE_MODEL =
@@ -335,9 +336,9 @@ export default function PitchDojoPage() {
     } else {
       try {
         console.log(`[endPitch] POST /pitch/sessions/${sessionId.current}/video-analysis`)
-        const res = await fetch(`http://localhost:8000/pitch/sessions/${sessionId.current}/video-analysis`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/pitch/sessions/${sessionId.current}/video-analysis`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify(results),
         })
         console.log(`[endPitch] response status: ${res.status}`, await res.json())
