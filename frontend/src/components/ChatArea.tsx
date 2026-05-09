@@ -130,7 +130,12 @@ export default function ChatArea({
           <div className="input-footer">
             <div className="input-footer-left">
               <div className="hlink" onClick={onClear}>Clear</div>
-              <div className="export-btn" onClick={onExport}>Export manifest</div>
+              <div
+                className={`export-btn${isLoading ? ' export-btn--disabled' : ''}`}
+                onClick={!isLoading ? onExport : undefined}
+              >
+                {isLoading ? 'Generating…' : 'Export manifest'}
+              </div>
             </div>
             <div className="input-footer-right">
               <div className="input-hint">Return to send</div>

@@ -1,10 +1,11 @@
 import os
-from typing import TypedDict, Literal, Optional
+from typing import TypedDict, Literal, Optional, Annotated
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
 
 from core.utils import parse_json_response
 
@@ -29,35 +30,24 @@ class ManifestDict(TypedDict, total=False):
 
 
 class AgentState(TypedDict):
-    # Full conversation history passed to Gemini on every turn
-    messages: list[BaseMessage]
-    # Current phase of the brainstorm session
+    # add_messages reducer appends incoming messages instead of replacing the list
+    messages: Annotated[list[BaseMessage], add_messages]
     phase: Phase
-    # Extracted manifest — populated once the session reaches finalizing phase
     manifest: ManifestDict
+    # set to True only during finalize flow to trigger manifest extraction
+    do_extract: bool
 
 
 # ---------------------------------------------------------------------------
 # Phase logic
 # ---------------------------------------------------------------------------
 
-# Number of human turns required before advancing to the next phase
-_PHASE_THRESHOLDS: dict[Phase, int] = {
-    "exploring": 3,
-    "challenging": 3,
-}
-
-
-def _next_phase(current: Phase, human_turn_count: int) -> Phase:
-    # Stay in finalizing once reached — no threshold defined for it
-    threshold = _PHASE_THRESHOLDS.get(current)
-    if threshold is None:
-        return current
-    if human_turn_count >= threshold:
-        if current == "exploring":
-            return "challenging"
-        if current == "challenging":
-            return "finalizing"
+# Cumulative human-turn thresholds: exploring ends after 3 turns, challenging after 6 total
+def _compute_next_phase(current: Phase, total_human_turns: int) -> Phase:
+    if current == "exploring" and total_human_turns > 3:
+        return "challenging"
+    if current == "challenging" and total_human_turns > 6:
+        return "finalizing"
     return current
 
 
@@ -94,7 +84,6 @@ _SYSTEM_PROMPTS: dict[Phase, str] = {
 # Manifest extraction
 # ---------------------------------------------------------------------------
 
-# Double braces {{ }} are used so .format() doesn't treat JSON keys as placeholders
 _MANIFEST_EXTRACTION_PROMPT = (
     "Based on the conversation below, extract a structured startup manifest as JSON. "
     "Return ONLY valid JSON with these exact keys (use null for anything not yet discussed):\n"
@@ -104,14 +93,13 @@ _MANIFEST_EXTRACTION_PROMPT = (
 )
 
 
-def _extract_manifest(llm: ChatGroq, messages: list[BaseMessage]) -> ManifestDict:
-    # Format the full conversation as plain text for the extraction prompt
+async def _extract_manifest(llm: ChatGroq, messages: list[BaseMessage]) -> ManifestDict:
     conversation = "\n".join(
         f"{'User' if isinstance(m, HumanMessage) else 'Assistant'}: {m.content}"
         for m in messages
     )
     prompt = _MANIFEST_EXTRACTION_PROMPT.format(conversation=conversation)
-    response = llm.invoke([HumanMessage(content=prompt)])
+    response = await llm.ainvoke([HumanMessage(content=prompt)])
     try:
         return parse_json_response(response.content)
     except Exception:
@@ -119,63 +107,107 @@ def _extract_manifest(llm: ChatGroq, messages: list[BaseMessage]) -> ManifestDic
 
 
 # ---------------------------------------------------------------------------
-# LangGraph node
+# LLM (initialized once at import)
 # ---------------------------------------------------------------------------
 
-def _build_graph() -> StateGraph:
-    llm = ChatGroq(
-        model="llama-3.3-70b-versatile",
-        api_key=os.getenv("GROQ_API_KEY"),
-    )
+_llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    api_key=os.getenv("GROQ_API_KEY"),
+)
 
-    def consultant_node(state: AgentState) -> AgentState:
-        # Determine phase based on how many human turns have happened
-        human_turn_count = sum(1 for m in state["messages"] if isinstance(m, HumanMessage))
-        phase = _next_phase(state["phase"], human_turn_count)
+# ---------------------------------------------------------------------------
+# Graph nodes
+# ---------------------------------------------------------------------------
 
-        # Send full conversation history + phase-specific system prompt to Gemini
-        system_prompt = SystemMessage(content=_SYSTEM_PROMPTS[phase])
-        response = llm.invoke([system_prompt] + state["messages"])
-        new_messages = state["messages"] + [AIMessage(content=response.content)]
-
-        # Only extract manifest once we're in the finalizing phase
-        manifest = state.get("manifest", {})
-        if phase == "finalizing":
-            manifest = _extract_manifest(llm, new_messages)
-
+def _make_phase_node(phase: Phase):
+    async def node(state: AgentState) -> dict:
+        total_human_turns = sum(1 for m in state["messages"] if isinstance(m, HumanMessage))
+        new_phase = _compute_next_phase(phase, total_human_turns)
+        response = await _llm.ainvoke(
+            [SystemMessage(content=_SYSTEM_PROMPTS[phase])] + state["messages"]
+        )
         return {
-            "messages": new_messages,
-            "phase": phase,
-            "manifest": manifest,
+            "messages": [AIMessage(content=response.content)],
+            "phase": new_phase,
         }
-
-    # Single-node graph: one invocation = one turn, no loops
-    graph = StateGraph(AgentState)
-    graph.add_node("consultant", consultant_node)
-    graph.add_edge(START, "consultant")
-    graph.add_edge("consultant", END)
-    return graph.compile()
+    return node
 
 
-# Graph is compiled once at import time and reused across all requests
-_graph = _build_graph()
+async def _extract_manifest_node(state: AgentState) -> dict:
+    manifest = await _extract_manifest(_llm, state["messages"])
+    return {"manifest": manifest, "do_extract": False}
+
+
+# ---------------------------------------------------------------------------
+# Routing
+# ---------------------------------------------------------------------------
+
+def _route_phase(state: AgentState) -> str:
+    return state.get("phase", "exploring")
+
+
+def _route_after_finalizing(state: AgentState) -> str:
+    return "extract_manifest" if state.get("do_extract") else END
+
+
+# ---------------------------------------------------------------------------
+# Graph definition
+# ---------------------------------------------------------------------------
+
+def _build_graph_def() -> StateGraph:
+    g = StateGraph(AgentState)
+
+    g.add_node("exploring", _make_phase_node("exploring"))
+    g.add_node("challenging", _make_phase_node("challenging"))
+    g.add_node("finalizing", _make_phase_node("finalizing"))
+    g.add_node("extract_manifest", _extract_manifest_node)
+
+    g.add_conditional_edges(START, _route_phase, {
+        "exploring": "exploring",
+        "challenging": "challenging",
+        "finalizing": "finalizing",
+    })
+
+    g.add_edge("exploring", END)
+    g.add_edge("challenging", END)
+    g.add_conditional_edges("finalizing", _route_after_finalizing, {
+        "extract_manifest": "extract_manifest",
+        END: END,
+    })
+    g.add_edge("extract_manifest", END)
+
+    return g
+
+
+_graph_def = _build_graph_def()
+compiled_graph = None  # set by init() during app startup
+
+
+def init(checkpointer) -> None:
+    global compiled_graph
+    compiled_graph = _graph_def.compile(checkpointer=checkpointer)
+
 
 # ---------------------------------------------------------------------------
 # Public interface
 # ---------------------------------------------------------------------------
 
-def initial_state() -> AgentState:
-    return {
-        "messages": [],
-        "phase": "exploring",
-        "manifest": {},
-    }
+async def chat(session_id: str, user_input: str) -> AgentState:
+    config = {"configurable": {"thread_id": session_id}}
+    return await compiled_graph.ainvoke(
+        {"messages": [HumanMessage(content=user_input)]},
+        config=config,
+    )
 
 
-def chat(state: AgentState, user_input: str) -> AgentState:
-    # Append user message to history before invoking the graph
-    state_with_input: AgentState = {
-        **state,
-        "messages": state["messages"] + [HumanMessage(content=user_input)],
-    }
-    return _graph.invoke(state_with_input)
+async def finalize(session_id: str) -> AgentState:
+    """Run the finalizing prompt and extract the manifest in one graph invocation."""
+    config = {"configurable": {"thread_id": session_id}}
+    return await compiled_graph.ainvoke(
+        {
+            "messages": [HumanMessage(content="Please finalize my idea")],
+            "phase": "finalizing",
+            "do_extract": True,
+        },
+        config=config,
+    )

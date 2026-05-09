@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -10,16 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.database import get_db
 from db.models import BrainstormSession, Message, StartupManifest, User
 from schemas.brainstorm import BrainstormSessionOut, MessageOut, StartupManifestOut
-from agents.brainstorm_agent import initial_state, chat
+from agents.brainstorm_agent import chat, finalize
 from core.security import get_current_user
 
 router = APIRouter()
-
-# In-memory agent state store keyed by session_id string.
-# Holds the full LangGraph AgentState (messages, phase, manifest) per session.
-# NOTE: This is lost on server restart — sessions started before a restart
-# will begin with a fresh state if chatted again.
-_session_states: dict[str, Any] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +68,22 @@ async def create_session(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Creates a new brainstorm session tied to the current user
+    # Return existing in-progress session if one exists — one active chat per user
+    existing = await db.execute(
+        select(BrainstormSession).where(
+            BrainstormSession.user_id == current_user.id,
+            BrainstormSession.status == "in_progress",
+        )
+    )
+    if session := existing.scalar_one_or_none():
+        return BrainstormSessionOut(
+            id=session.id,
+            title="Chat session",
+            status=session.status,
+            created_at=session.created_at,
+            completed_at=session.completed_at,
+        )
+
     session = BrainstormSession(user_id=current_user.id)
     db.add(session)
     await db.commit()
@@ -96,17 +104,9 @@ async def chat_turn(
     if session.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    key = str(session_id)
-    # Load existing agent state or start fresh if not found (e.g. after restart)
-    state = _session_states.get(key, initial_state())
-
-    # Run one turn through the LangGraph agent
-    state = chat(state, body.message)
-    _session_states[key] = state
-
+    state = await chat(str(session_id), body.message)
     reply = state["messages"][-1].content
 
-    # Persist both sides of the conversation to the DB
     db.add(Message(session_id=session_id, role="user", content=body.message))
     db.add(Message(session_id=session_id, role="assistant", content=reply))
     await db.commit()
@@ -120,7 +120,6 @@ async def get_messages(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Returns all messages for a session ordered oldest-first
     session = await db.get(BrainstormSession, session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -147,14 +146,10 @@ async def delete_session(
     if session.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Delete child records first, then the session
     await db.execute(delete(Message).where(Message.session_id == session_id))
     await db.execute(delete(StartupManifest).where(StartupManifest.brainstorm_session_id == session_id))
     await db.delete(session)
     await db.commit()
-
-    # Clear in-memory agent state
-    _session_states.pop(str(session_id), None)
 
 
 @router.get("/manifest", response_model=StartupManifestOut)
@@ -199,31 +194,34 @@ async def get_manifest(
 @router.post("/session/{session_id}/finalize", response_model=StartupManifestOut)
 async def finalize_session(
     session_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     session = await db.get(BrainstormSession, session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
-    key = str(session_id)
-    state = _session_states.get(key, initial_state())
+    state = await finalize(str(session_id))
 
-    # Run a final agent turn to generate the summary and extract the manifest
-    state = chat(state, "Please finalize my idea")
-    _session_states[key] = state
+    # Persist the finalize turn messages
+    reply = state["messages"][-1].content
+    db.add(Message(session_id=session_id, role="user", content="Please finalize my idea"))
+    db.add(Message(session_id=session_id, role="assistant", content=reply))
 
     manifest_data = state.get("manifest", {})
 
-    # Upsert: update existing manifest for this user if one already exists
+    # Upsert manifest for this user
     existing = await db.execute(
-        select(StartupManifest).where(StartupManifest.user_id == session.user_id)
+        select(StartupManifest).where(StartupManifest.user_id == current_user.id)
     )
     manifest = existing.scalar_one_or_none()
 
     if manifest is None:
         manifest = StartupManifest(
             brainstorm_session_id=session_id,
-            user_id=session.user_id,
+            user_id=current_user.id,
         )
         db.add(manifest)
     else:
@@ -238,7 +236,6 @@ async def finalize_session(
     manifest.differentiators = manifest_data.get("differentiators")
     manifest.key_assumptions = manifest_data.get("key_assumptions")
 
-    # Mark the session as done
     session.status = "completed"
     session.completed_at = datetime.now(timezone.utc)
 

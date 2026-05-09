@@ -1105,6 +1105,12 @@ body {
   box-shadow: 0 4px 12px rgba(11, 19, 112, 0.28);
 }
 
+.export-btn--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* ==================== MESSAGES ==================== */
 
 .messages {
