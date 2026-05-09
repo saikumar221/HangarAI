@@ -24,6 +24,10 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class SignupResponse(UserOut):
+    access_token: str
+    token_type: str
+
 
 # --- BrainstormSession ---
 

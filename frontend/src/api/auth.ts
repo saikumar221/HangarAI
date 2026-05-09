@@ -17,9 +17,10 @@ export async function signup(email: string, password: string, first_name: string
     const err = await res.json().catch(() => ({}))
     throw new Error(err.detail ?? 'Signup failed')
   }
-  const user: StoredUser = await res.json()
+  const { access_token, token_type: _tt, ...user } = await res.json()
+  localStorage.setItem('token', access_token)
   localStorage.setItem('user', JSON.stringify(user))
-  return user
+  return user as StoredUser
 }
 
 export async function login(email: string, password: string): Promise<void> {

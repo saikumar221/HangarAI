@@ -5,15 +5,14 @@ from sqlalchemy import select
 
 from db.database import get_db
 from db.models import User
-from schemas.brainstorm import UserCreate, UserOut, Token
+from schemas.brainstorm import UserCreate, UserOut, Token, SignupResponse
 from core.security import hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter()
 
 
-@router.post("/signup", response_model=UserOut, status_code=201)
+@router.post("/signup", response_model=SignupResponse, status_code=201)
 async def signup(body: UserCreate, db: AsyncSession = Depends(get_db)):
-    # Check if email is already registered
     result = await db.execute(select(User).where(User.email == body.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
@@ -27,7 +26,8 @@ async def signup(body: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    return user
+    token = create_access_token({"sub": str(user.id)})
+    return {**user.__dict__, "access_token": token, "token_type": "bearer"}
 
 
 @router.post("/login", response_model=Token)
