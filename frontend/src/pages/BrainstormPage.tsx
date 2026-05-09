@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import ChatArea from '../components/ChatArea'
 import { createSession, sendMessage, finalizeSession, deleteSession, deleteManifest, getSessions, getMessages } from '../api/brainstorm'
 import type { ChatItem, Phase } from '../types/brainstorm'
@@ -8,17 +8,31 @@ export default function BrainstormPage() {
   const [items, setItems] = useState<ChatItem[]>([])
   const [phase, setPhase] = useState<Phase>('exploring')
   const [isLoading, setIsLoading] = useState(false)
+  const initialized = useRef(false)
 
   // On mount: load existing session or create one
   useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+
     async function initSession() {
       try {
         const sessions = await getSessions()
-        const existing = sessions.find(s => s.status === 'in_progress') ?? sessions[0] ?? null
+        let chosen = sessions.find(s => s.status === 'in_progress') ?? sessions[0] ?? null
 
-        if (existing) {
-          setSessionId(existing.id)
-          const msgs = await getMessages(existing.id)
+        if (chosen) {
+          let msgs = await getMessages(chosen.id)
+
+          // Ghost session — in_progress but no messages, fall back to most recent other session
+          if (msgs.length === 0 && sessions.length > 1) {
+            const fallback = sessions.find(s => s.id !== chosen!.id)
+            if (fallback) {
+              chosen = fallback
+              msgs = await getMessages(fallback.id)
+            }
+          }
+
+          setSessionId(chosen.id)
           const chatItems: ChatItem[] = msgs.map(m => ({
             type: 'message' as const,
             id: m.id,

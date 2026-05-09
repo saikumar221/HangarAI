@@ -214,9 +214,9 @@ async def finalize_session(
 
     manifest_data = state.get("manifest", {})
 
-    # Upsert: update existing manifest for this session if one already exists
+    # Upsert: update existing manifest for this user if one already exists
     existing = await db.execute(
-        select(StartupManifest).where(StartupManifest.brainstorm_session_id == session_id)
+        select(StartupManifest).where(StartupManifest.user_id == session.user_id)
     )
     manifest = existing.scalar_one_or_none()
 
@@ -226,6 +226,8 @@ async def finalize_session(
             user_id=session.user_id,
         )
         db.add(manifest)
+    else:
+        manifest.brainstorm_session_id = session_id
 
     manifest.one_liner = manifest_data.get("one_liner")
     manifest.problem = manifest_data.get("problem")
