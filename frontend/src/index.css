@@ -1350,6 +1350,59 @@ body {
   border-radius: 2px;
 }
 
+.pitch-sitem {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff;
+  border: 0.5px solid #E2E1DE;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pitch-sitem:hover {
+  background: #EDECE9;
+  border-color: #D0CFCC;
+}
+
+.pitch-sitem-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #3A3938;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+
+.pitch-sitem-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.pitch-sitem-company {
+  font-size: 11px;
+  font-weight: 300;
+  color: #9A9998;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.pitch-sitem-date {
+  font-size: 10px;
+  font-weight: 300;
+  color: #C0BFBD;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .pitch-manifest-card {
   background: #F3F2EF;
   border: 0.5px solid #E2E1DE;

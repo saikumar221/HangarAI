@@ -2,6 +2,21 @@ import { authHeaders } from './auth'
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/pitch`
 
+export interface ApiPitchSession {
+  id: string
+  investor_first_name: string
+  investor_last_name: string
+  investor_company: string
+  status: string
+  created_at: string
+}
+
+export async function getPitchSessions(): Promise<ApiPitchSession[]> {
+  const res = await fetch(`${BASE}/sessions`, { headers: authHeaders() })
+  if (!res.ok) throw new Error('Failed to fetch pitch sessions')
+  return res.json()
+}
+
 // Creates the session row in the DB before the audio WebSocket opens.
 // Maps camelCase InvestorForm fields to the snake_case API schema.
 // Empty strings are coerced to null so the backend treats them as absent.

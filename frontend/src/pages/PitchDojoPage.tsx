@@ -6,7 +6,8 @@ import AppNav from '../components/AppNav'
 import { getUserManifest } from '../api/brainstorm'
 import { authHeaders } from '../api/auth'
 import type { ApiManifest } from '../api/brainstorm'
-import { createPitchSession } from '../api/pitch'
+import { createPitchSession, getPitchSessions } from '../api/pitch'
+import type { ApiPitchSession } from '../api/pitch'
 import { VC_PERSONAS } from '../data/vcPersonas'
 import type { VCPersona } from '../data/vcPersonas'
 
@@ -106,6 +107,7 @@ function computeHeadStability(positions: { x: number; y: number }[]): number {
 export default function PitchDojoPage() {
   const navigate = useNavigate()
   const [manifest, setManifest] = useState<ApiManifest | null>(null)
+  const [pitchSessions, setPitchSessions] = useState<ApiPitchSession[]>([])
   const [selectedPersona, setSelectedPersona] = useState<VCPersona | 'custom' | null>(null)
   const [form, setForm] = useState<InvestorForm>({
     firstName: '',
@@ -125,6 +127,9 @@ export default function PitchDojoPage() {
     getUserManifest()
       .then(setManifest)
       .catch(() => navigate('/manifest'))
+    getPitchSessions()
+      .then(setPitchSessions)
+      .catch(() => {})
   }, [])
 
   // Stable session ID for the duration of this page visit
@@ -447,7 +452,23 @@ export default function PitchDojoPage() {
       <div className="pitch-body">
         <aside className="pitch-sidebar">
           <div className="sec-label">Pitch Sessions</div>
-          <div className="sitem-empty">No sessions yet</div>
+          {pitchSessions.length === 0 ? (
+            <div className="sitem-empty">No sessions yet</div>
+          ) : (
+            pitchSessions.map(s => (
+              <Link
+                key={s.id}
+                to={`/generate-analysis/${s.id}`}
+                className="pitch-sitem"
+              >
+                <div className="pitch-sitem-name">{s.investor_first_name} {s.investor_last_name}</div>
+                <div className="pitch-sitem-bottom">
+                  <div className="pitch-sitem-company">{s.investor_company}</div>
+                  <div className="pitch-sitem-date">{new Date(s.created_at).toLocaleDateString()}</div>
+                </div>
+              </Link>
+            ))
+          )}
         </aside>
 
         <div className="pitch-content">

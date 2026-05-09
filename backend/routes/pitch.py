@@ -45,6 +45,30 @@ class VideoInsightSnapshot(BaseModel):
     head_movement_score: float
 
 
+@router.get("/sessions")
+async def list_pitch_sessions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(PitchSession)
+        .where(PitchSession.user_id == current_user.id)
+        .order_by(PitchSession.created_at.desc())
+    )
+    sessions = result.scalars().all()
+    return [
+        {
+            "id": str(s.id),
+            "investor_first_name": s.investor_first_name,
+            "investor_last_name": s.investor_last_name,
+            "investor_company": s.investor_company,
+            "status": s.status,
+            "created_at": s.created_at,
+        }
+        for s in sessions
+    ]
+
+
 @router.post("/sessions")
 async def create_pitch_session(
     body: CreatePitchSessionRequest,
