@@ -7,7 +7,7 @@ export interface StoredUser {
   last_name: string
 }
 
-export async function signup(email: string, password: string, first_name: string, last_name: string): Promise<StoredUser> {
+export async function signup(email: string, password: string, first_name: string, last_name: string): Promise<void> {
   const res = await fetch(`${API_BASE}/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -17,10 +17,6 @@ export async function signup(email: string, password: string, first_name: string
     const err = await res.json().catch(() => ({}))
     throw new Error(err.detail ?? 'Signup failed')
   }
-  const { access_token, token_type: _tt, ...user } = await res.json()
-  localStorage.setItem('token', access_token)
-  localStorage.setItem('user', JSON.stringify(user))
-  return user as StoredUser
 }
 
 export async function login(email: string, password: string): Promise<void> {

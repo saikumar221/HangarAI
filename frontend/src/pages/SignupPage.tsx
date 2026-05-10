@@ -16,10 +16,8 @@ export default function SignupPage() {
     setError('')
     setLoading(true)
     try {
-      const user = await signup(email, password, firstName, lastName)
-      // Store user info from signup response; token not needed until routes are protected
-      localStorage.setItem('user', JSON.stringify(user))
-      navigate('/home')
+      await signup(email, password, firstName, lastName)
+      navigate('/login')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
